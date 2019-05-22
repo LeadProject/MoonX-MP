@@ -30,11 +30,11 @@ use pocketmine\item\ItemFactory;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\EntityEventPacket;
 
-class CodFish extends WaterAnimal{
-	public const NETWORK_ID = self::COD;
+class TropicalFish extends WaterAnimal{
+	public const NETWORK_ID = self::TROPICAL_FISH;
 
-	public $width = 0.4;
-	public $height = 0.8;
+	public $width = 0.5;
+	public $height = 0.4;
 
 	/** @var Vector3 */
 	public $swimDirection = null;
@@ -44,11 +44,12 @@ class CodFish extends WaterAnimal{
 
 	public function initEntity() : void{
 		$this->setMaxHealth(7);
+		$this->propertyManager->setInt(self::DATA_VARIANT, rand(0, 235340288));
 		parent::initEntity();
 	}
 
 	public function getName() : string{
-		return "Cod";
+		return "Tropical Fish";
 	}
 
 	protected function applyGravity() : void{
@@ -57,10 +58,21 @@ class CodFish extends WaterAnimal{
 		}
 	}
 
-
 	public function getDrops() : array{
-		return [
-			ItemFactory::get(Item::FISH, 0, mt_rand(1, 3))
-		];
+    $chance = mt_rand(0, 2);
+    switch($chance){
+      case 0:
+      return [
+        ItemFactory::get(Item::TROPICAL_FISH, 0, 1)
+      ];
+      case 1:
+      return [
+        ItemFactory::get(Item::BONE, 0, mt_rand(0, 2))
+      ];
+      case 2:
+      return [
+  			ItemFactory::get(Item::FISH, 0, mt_rand(1, 2))
+  		];
+    }
 	}
 }

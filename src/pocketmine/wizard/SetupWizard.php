@@ -214,6 +214,13 @@ LICENSE;
 		}else{
 			$config->set("enable-rcon", false);
 		}
+		
+		$this->message("Hardcore mod? y/N");
+		if(strtolower($this->getInput("hardcore", "n", "y/N")) === "y"){
+			$config->set("hardcore", true);
+		}else{
+			$config->set("hardcore", false);
+		}
 
 		$config->save();
 

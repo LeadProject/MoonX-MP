@@ -45,8 +45,12 @@ class Ravager extends Monster{
 	public function getXpDropAmount() : int{
 		return 100;
 	}
-	
+
 	public function ridingRavager(Player $player){
 		$this->setGenericFlag(DATA_FLAG_RIDING, $player);
+	}
+
+	public function getSeatCount() : int{
+		return 2;
 	}
 }

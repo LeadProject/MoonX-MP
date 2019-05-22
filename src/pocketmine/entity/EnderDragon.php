@@ -15,46 +15,39 @@ declare(strict_types=1);
 
 namespace pocketmine\entity;
 
-use pocketmine\event\entity\EntityDamageByEntityEvent;
-use pocketmine\event\entity\EntityDamageEvent;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
-use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\EntityEventPacket;
+use pocketmine\Player;
+use function mt_rand;
 
-class Turtle extends Animal{
-	public const NETWORK_ID = self::TURTLE;
+class EnderDragon extends Monster{
+	public const NETWORK_ID = self::ENDER_DRAGON;
 
-	public $width = 1.25 + M_PI - 3;
-	public $height = 0.15;
-
-	/** @var Vector3 */
-	public $swimDirection = null;
-	public $swimSpeed = 0.35;
+	public $width = 3.5;
+	public $height = 2.7;
 
 	public function getName() : string{
-		return "Turtle";
-	}
-
-	protected function applyGravity() : void{
-		if(!$this->isUnderwater()){
-			parent::applyGravity();
-		}
+		return "Ender Dragon";
 	}
 
 	public function getDrops() : array{
 		$drops = [
-			ItemFactory::get(Item::TURTLE_SHELL_PIECE, 0, mt_rand(0, 3))
+			ItemFactory::get(Item::DRAGON_EGG, 0, 1)
 		];
 		return $drops;
 	}
 
 	public function initEntity() : void{
-		$this->setMaxHealth(30);
+		$this->setMaxHealth(200);
 		parent::initEntity();
 	}
 
-	public function getXpDropAmount() : int{
-		return 5;
+	public function smallSize(){
+		$this->setScale(0.5);
 	}
+
+	public function getXpDropAmount() : int{
+		return mt_rand(5000, 15000);
+	}
+
 }

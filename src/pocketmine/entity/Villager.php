@@ -131,7 +131,11 @@ class Villager extends Creature implements NPC, Ageable{
 		if($this->closed){
 			return false;
 		}
-		$this->setRotation(mt_rand(180, 360), mt_rand(180, 360));
+		$f = sqrt(($this->motion->x ** 2) + ($this->motion->z ** 2));
+		$yaw = (-atan2($this->motion->x, $this->motion->z) * 180 / M_PI);
+		$pitch = (-atan2($f, $this->motion->y) * 180 / M_PI);
+
+		$this->setRotation($yaw, $pitch);
 		switch(mt_rand(0, 4)){
 			case 0:
 			$this->setMotion(new Vector3(0.1, 0, 0));

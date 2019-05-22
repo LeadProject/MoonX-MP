@@ -47,6 +47,15 @@ class OceanBiome extends Biome{
 
 		$this->temperature = 0.5;
 		$this->rainfall = 0.5;
+
+		$object = mt_rand(0, 5);
+
+		switch($object){
+			case 5:
+			echo "Chunk [Boat]";
+			return true;
+		}
+
 	}
 
 	public function getName() : string{

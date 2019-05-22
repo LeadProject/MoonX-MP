@@ -40,7 +40,6 @@ class Minecart extends Vehicle {
 
     protected function initEntity(): void{
         $this->setHealth(6);
-
         parent::initEntity();
     }
 

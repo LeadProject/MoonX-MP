@@ -44,52 +44,11 @@ class PufferFish extends WaterAnimal{
 
 	public function initEntity() : void{
 		$this->setMaxHealth(7);
-		$this->propertyManager->setInt(self::DATA_VARIANT, rand(0, 235340288));
 		parent::initEntity();
 	}
 
 	public function getName() : string{
 		return "Pufferfish";
-	}
-
-	public function entityBaseTick(int $tickDiff = 1) : bool{
-		if($this->closed){
-			return false;
-		}
-
-		if(++$this->switchDirectionTicker === 100 or $this->isCollided){
-			$this->switchDirectionTicker = 0;
-			if(mt_rand(0, 100) < 50){
-				$this->swimDirection = null;
-			}
-		}
-
-		$hasUpdate = parent::entityBaseTick($tickDiff);
-
-		if($this->isAlive()){
-
-			if($this->y > 62 and $this->swimDirection !== null){
-				$this->swimDirection->y = -0.5;
-			}
-
-			$inWater = $this->isUnderwater();
-			if(!$inWater){
-				$this->swimDirection = null;
-			}elseif($this->swimDirection !== null){
-				if($this->motion->lengthSquared() <= $this->swimDirection->lengthSquared()){
-					$this->motion = $this->swimDirection->multiply($this->swimSpeed);
-				}
-			}else{
-				$this->swimDirection = $this->generateRandomDirection();
-				$this->swimSpeed = mt_rand(50, 100) / 2000;
-			}
-
-			$f = sqrt(($this->motion->x ** 2) + ($this->motion->z ** 2));
-			$this->yaw = (-atan2($this->motion->x, $this->motion->z) * 180 / M_PI);
-			$this->pitch = (-atan2($f, $this->motion->y) * 180 / M_PI);
-		}
-
-		return $hasUpdate;
 	}
 
 	protected function applyGravity() : void{
