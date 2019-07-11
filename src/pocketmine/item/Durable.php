@@ -24,11 +24,17 @@ declare(strict_types=1);
 namespace pocketmine\item;
 
 use pocketmine\item\enchantment\Enchantment;
-use pocketmine\nbt\tag\ByteTag;
 use function lcg_value;
 use function min;
 
 abstract class Durable extends Item{
+
+	/** @var int */
+	protected $damage = 0;
+
+	public function getMeta() : int{
+		return $this->damage;
+	}
 
 	/**
 	 * Returns whether this item will take damage when used.
@@ -42,9 +48,12 @@ abstract class Durable extends Item{
 	 * Sets whether the item will take damage when used.
 	 *
 	 * @param bool $value
+	 *
+	 * @return $this
 	 */
-	public function setUnbreakable(bool $value = true){
-		$this->setNamedTagEntry(new ByteTag("Unbreakable", $value ? 1 : 0));
+	public function setUnbreakable(bool $value = true) : self{
+		$this->getNamedTag()->setByte("Unbreakable", $value ? 1 : 0);
+		return $this;
 	}
 
 	/**
@@ -61,7 +70,7 @@ abstract class Durable extends Item{
 
 		$amount -= $this->getUnbreakingDamageReduction($amount);
 
-		$this->meta = min($this->meta + $amount, $this->getMaxDurability());
+		$this->damage = min($this->damage + $amount, $this->getMaxDurability());
 		if($this->isBroken()){
 			$this->onBroken();
 		}
@@ -69,8 +78,20 @@ abstract class Durable extends Item{
 		return true;
 	}
 
+	public function getDamage() : int{
+		return $this->damage;
+	}
+
+	public function setDamage(int $damage) : Item{
+		if($damage < 0 or $damage > $this->getMaxDurability()){
+			throw new \InvalidArgumentException("Damage must be in range 0 - " . $this->getMaxDurability());
+		}
+		$this->damage = $damage;
+		return $this;
+	}
+
 	protected function getUnbreakingDamageReduction(int $amount) : int{
-		if(($unbreakingLevel = $this->getEnchantmentLevel(Enchantment::UNBREAKING)) > 0){
+		if(($unbreakingLevel = $this->getEnchantmentLevel(Enchantment::UNBREAKING())) > 0){
 			$negated = 0;
 
 			$chance = 1 / ($unbreakingLevel + 1);
@@ -105,6 +126,6 @@ abstract class Durable extends Item{
 	 * @return bool
 	 */
 	public function isBroken() : bool{
-		return $this->meta >= $this->getMaxDurability();
+		return $this->damage >= $this->getMaxDurability();
 	}
 }

@@ -25,10 +25,10 @@ namespace pocketmine\network\mcpe\protocol;
 
 #include <rules/DataPacket.h>
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 use function base64_decode;
 
-class AvailableEntityIdentifiersPacket extends DataPacket{
+class AvailableEntityIdentifiersPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::AVAILABLE_ENTITY_IDENTIFIERS_PACKET;
 
 	/**
@@ -39,15 +39,15 @@ class AvailableEntityIdentifiersPacket extends DataPacket{
 	/** @var string */
 	public $namedtag;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->namedtag = $this->getRemaining();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->put($this->namedtag ?? base64_decode(self::HARDCODED_NBT_BLOB));
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleAvailableEntityIdentifiers($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleAvailableEntityIdentifiers($this);
 	}
 }

@@ -25,9 +25,11 @@ namespace pocketmine\entity\object;
 
 use pocketmine\entity\Entity;
 use pocketmine\entity\Human;
-use pocketmine\nbt\tag\ShortTag;
+use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
-use pocketmine\Player;
+use pocketmine\nbt\tag\ShortTag;
+use pocketmine\network\mcpe\protocol\types\EntityMetadataProperties;
+use pocketmine\player\Player;
 use function sqrt;
 
 class ExperienceOrb extends Entity{
@@ -104,39 +106,41 @@ class ExperienceOrb extends Entity{
 	 */
 	protected $targetPlayerRuntimeId = null;
 
-	protected function initEntity() : void{
-		parent::initEntity();
+	protected function initEntity(CompoundTag $nbt) : void{
+		parent::initEntity($nbt);
 
-		$this->age = $this->namedtag->getShort("Age", 0);
+		$this->age = $nbt->getShort("Age", 0);
 
 		$value = 0;
-		if($this->namedtag->hasTag(self::TAG_VALUE_PC, ShortTag::class)){ //PC
-			$value = $this->namedtag->getShort(self::TAG_VALUE_PC);
-		}elseif($this->namedtag->hasTag(self::TAG_VALUE_PE, IntTag::class)){ //PE save format
-			$value = $this->namedtag->getInt(self::TAG_VALUE_PE);
+		if($nbt->hasTag(self::TAG_VALUE_PC, ShortTag::class)){ //PC
+			$value = $nbt->getShort(self::TAG_VALUE_PC);
+		}elseif($nbt->hasTag(self::TAG_VALUE_PE, IntTag::class)){ //PE save format
+			$value = $nbt->getInt(self::TAG_VALUE_PE);
 		}
 
 		$this->setXpValue($value);
 	}
 
-	public function saveNBT() : void{
-		parent::saveNBT();
+	public function saveNBT() : CompoundTag{
+		$nbt = parent::saveNBT();
 
-		$this->namedtag->setShort("Age", $this->age);
+		$nbt->setShort("Age", $this->age);
 
-		$this->namedtag->setShort(self::TAG_VALUE_PC, $this->getXpValue());
-		$this->namedtag->setInt(self::TAG_VALUE_PE, $this->getXpValue());
+		$nbt->setShort(self::TAG_VALUE_PC, $this->getXpValue());
+		$nbt->setInt(self::TAG_VALUE_PE, $this->getXpValue());
+
+		return $nbt;
 	}
 
 	public function getXpValue() : int{
-		return $this->propertyManager->getInt(self::DATA_EXPERIENCE_VALUE) ?? 0;
+		return $this->propertyManager->getInt(EntityMetadataProperties::EXPERIENCE_VALUE) ?? 0;
 	}
 
 	public function setXpValue(int $amount) : void{
 		if($amount <= 0){
 			throw new \InvalidArgumentException("XP amount must be greater than 0, got $amount");
 		}
-		$this->propertyManager->setInt(self::DATA_EXPERIENCE_VALUE, $amount);
+		$this->propertyManager->setInt(EntityMetadataProperties::EXPERIENCE_VALUE, $amount);
 	}
 
 	public function hasTargetPlayer() : bool{
@@ -148,7 +152,7 @@ class ExperienceOrb extends Entity{
 			return null;
 		}
 
-		$entity = $this->level->getEntity($this->targetPlayerRuntimeId);
+		$entity = $this->world->getEntity($this->targetPlayerRuntimeId);
 		if($entity instanceof Human){
 			return $entity;
 		}
@@ -160,7 +164,7 @@ class ExperienceOrb extends Entity{
 		$this->targetPlayerRuntimeId = $player !== null ? $player->getId() : null;
 	}
 
-	public function entityBaseTick(int $tickDiff = 1) : bool{
+	protected function entityBaseTick(int $tickDiff = 1) : bool{
 		$hasUpdate = parent::entityBaseTick($tickDiff);
 
 		$this->age += $tickDiff;
@@ -176,7 +180,7 @@ class ExperienceOrb extends Entity{
 
 		if($this->lookForTargetTime >= 20){
 			if($currentTarget === null){
-				$newTarget = $this->level->getNearestEntity($this, self::MAX_TARGET_DISTANCE, Human::class);
+				$newTarget = $this->world->getNearestEntity($this, self::MAX_TARGET_DISTANCE, Human::class);
 
 				if($newTarget instanceof Human and !($newTarget instanceof Player and $newTarget->isSpectator())){
 					$currentTarget = $newTarget;

@@ -23,13 +23,11 @@ declare(strict_types=1);
 
 namespace pocketmine\scheduler;
 
-use pocketmine\Server;
 use pocketmine\utils\Utils;
 use function array_keys;
 use function assert;
 use function count;
-use function get_class;
-use function spl_object_hash;
+use function spl_object_id;
 use function time;
 use const PHP_INT_MAX;
 use const PTHREADS_INHERIT_CONSTANTS;
@@ -42,9 +40,6 @@ use const PTHREADS_INHERIT_INI;
 class AsyncPool{
 	private const WORKER_START_OPTIONS = PTHREADS_INHERIT_INI | PTHREADS_INHERIT_CONSTANTS;
 
-	/** @var Server */
-	private $server;
-
 	/** @var \ClassLoader */
 	private $classLoader;
 	/** @var \ThreadedLogger */
@@ -54,25 +49,18 @@ class AsyncPool{
 	/** @var int */
 	private $workerMemoryLimit;
 
-	/** @var AsyncTask[] */
-	private $tasks = [];
-	/** @var int[] */
-	private $taskWorkers = [];
-	/** @var int */
-	private $nextTaskId = 1;
+	/** @var \SplQueue[]|AsyncTask[][] */
+	private $taskQueues = [];
 
 	/** @var AsyncWorker[] */
 	private $workers = [];
-	/** @var int[] */
-	private $workerUsage = [];
 	/** @var int[] */
 	private $workerLastUsed = [];
 
 	/** @var \Closure[] */
 	private $workerStartHooks = [];
 
-	public function __construct(Server $server, int $size, int $workerMemoryLimit, \ClassLoader $classLoader, \ThreadedLogger $logger){
-		$this->server = $server;
+	public function __construct(int $size, int $workerMemoryLimit, \ClassLoader $classLoader, \ThreadedLogger $logger){
 		$this->size = $size;
 		$this->workerMemoryLimit = $workerMemoryLimit;
 		$this->classLoader = $classLoader;
@@ -109,7 +97,7 @@ class AsyncPool{
 	 */
 	public function addWorkerStartHook(\Closure $hook) : void{
 		Utils::validateCallableSignature(function(int $worker) : void{}, $hook);
-		$this->workerStartHooks[spl_object_hash($hook)] = $hook;
+		$this->workerStartHooks[spl_object_id($hook)] = $hook;
 		foreach($this->workers as $i => $worker){
 			$hook($i);
 		}
@@ -121,7 +109,7 @@ class AsyncPool{
 	 * @param \Closure $hook
 	 */
 	public function removeWorkerStartHook(\Closure $hook) : void{
-		unset($this->workerStartHooks[spl_object_hash($hook)]);
+		unset($this->workerStartHooks[spl_object_id($hook)]);
 	}
 
 	/**
@@ -143,10 +131,12 @@ class AsyncPool{
 	 */
 	private function getWorker(int $worker) : AsyncWorker{
 		if(!isset($this->workers[$worker])){
-			$this->workerUsage[$worker] = 0;
+
 			$this->workers[$worker] = new AsyncWorker($this->logger, $worker, $this->workerMemoryLimit);
 			$this->workers[$worker]->setClassLoader($this->classLoader);
 			$this->workers[$worker]->start(self::WORKER_START_OPTIONS);
+
+			$this->taskQueues[$worker] = new \SplQueue();
 
 			foreach($this->workerStartHooks as $hook){
 				$hook($worker);
@@ -166,18 +156,15 @@ class AsyncPool{
 		if($worker < 0 or $worker >= $this->size){
 			throw new \InvalidArgumentException("Invalid worker $worker");
 		}
-		if($task->getTaskId() !== null){
+		if($task->isSubmitted()){
 			throw new \InvalidArgumentException("Cannot submit the same AsyncTask instance more than once");
 		}
 
 		$task->progressUpdates = new \Threaded;
-		$task->setTaskId($this->nextTaskId++);
-
-		$this->tasks[$task->getTaskId()] = $task;
+		$task->setSubmitted();
 
 		$this->getWorker($worker)->stack($task);
-		$this->workerUsage[$worker]++;
-		$this->taskWorkers[$task->getTaskId()] = $worker;
+		$this->taskQueues[$worker]->enqueue($task);
 		$this->workerLastUsed[$worker] = time();
 	}
 
@@ -193,8 +180,8 @@ class AsyncPool{
 	public function selectWorker() : int{
 		$worker = null;
 		$minUsage = PHP_INT_MAX;
-		foreach($this->workerUsage as $i => $usage){
-			if($usage < $minUsage){
+		foreach($this->taskQueues as $i => $queue){
+			if(($usage = $queue->count()) < $minUsage){
 				$worker = $i;
 				$minUsage = $usage;
 				if($usage === 0){
@@ -225,7 +212,7 @@ class AsyncPool{
 	 * @return int
 	 */
 	public function submitTask(AsyncTask $task) : int{
-		if($task->getTaskId() !== null){
+		if($task->isSubmitted()){
 			throw new \InvalidArgumentException("Cannot submit the same AsyncTask instance more than once");
 		}
 
@@ -235,110 +222,54 @@ class AsyncPool{
 	}
 
 	/**
-	 * Removes a completed or crashed task from the pool.
-	 *
-	 * @param AsyncTask $task
-	 * @param bool      $force
-	 */
-	private function removeTask(AsyncTask $task, bool $force = false) : void{
-		if(isset($this->taskWorkers[$task->getTaskId()])){
-			if(!$force and ($task->isRunning() or !$task->isGarbage())){
-				return;
-			}
-			$this->workerUsage[$this->taskWorkers[$task->getTaskId()]]--;
-		}
-
-		unset($this->tasks[$task->getTaskId()]);
-		unset($this->taskWorkers[$task->getTaskId()]);
-	}
-
-	/**
-	 * Removes all tasks from the pool, cancelling where possible. This will block until all tasks have been
-	 * successfully deleted.
-	 */
-	public function removeTasks() : void{
-		foreach($this->workers as $worker){
-			/** @var AsyncTask $task */
-			while(($task = $worker->unstack()) !== null){
-				//cancelRun() is not strictly necessary here, but it might be used to inform plugins of the task state
-				//(i.e. it never executed).
-				$task->cancelRun();
-				$this->removeTask($task, true);
-			}
-		}
-		do{
-			foreach($this->tasks as $task){
-				$task->cancelRun();
-				$this->removeTask($task);
-			}
-
-			if(count($this->tasks) > 0){
-				Server::microSleep(25000);
-			}
-		}while(count($this->tasks) > 0);
-
-		for($i = 0; $i < $this->size; ++$i){
-			$this->workerUsage[$i] = 0;
-		}
-
-		$this->taskWorkers = [];
-		$this->tasks = [];
-
-		$this->collectWorkers();
-	}
-
-	/**
-	 * Collects garbage from running workers.
-	 */
-	private function collectWorkers() : void{
-		foreach($this->workers as $worker){
-			$worker->collect();
-		}
-	}
-
-	/**
 	 * Collects finished and/or crashed tasks from the workers, firing their on-completion hooks where appropriate.
 	 *
 	 * @throws \ReflectionException
 	 */
 	public function collectTasks() : void{
-		foreach($this->tasks as $task){
-			$task->checkProgressUpdates($this->server);
-			if($task->isGarbage() and !$task->isRunning() and !$task->isCrashed()){
-				if(!$task->hasCancelledRun()){
-					/*
-					 * It's possible for a task to submit a progress update and then finish before the progress
-					 * update is detected by the parent thread, so here we consume any missed updates.
-					 *
-					 * When this happens, it's possible for a progress update to arrive between the previous
-					 * checkProgressUpdates() call and the next isGarbage() call, causing progress updates to be
-					 * lost. Thus, it's necessary to do one last check here to make sure all progress updates have
-					 * been consumed before completing.
-					 */
-					$task->checkProgressUpdates($this->server);
-					$task->onCompletion($this->server);
-					if($task->removeDanglingStoredObjects()){
-						$this->logger->notice("AsyncTask " . get_class($task) . " stored local complex data but did not remove them after completion");
-					}
-				}
+		foreach($this->taskQueues as $worker => $queue){
+			$doGC = false;
+			while(!$queue->isEmpty()){
+				/** @var AsyncTask $task */
+				$task = $queue->bottom();
+				$task->checkProgressUpdates();
+				if($task->isFinished()){ //make sure the task actually executed before trying to collect
+					$doGC = true;
+					$queue->dequeue();
 
-				$this->removeTask($task);
-			}elseif($task->isCrashed()){
-				$this->logger->critical("Could not execute asynchronous task " . (new \ReflectionClass($task))->getShortName() . ": Task crashed");
-				$this->removeTask($task, true);
+					if($task->isCrashed()){
+						$this->logger->critical("Could not execute asynchronous task " . (new \ReflectionClass($task))->getShortName() . ": Task crashed");
+						$task->onError();
+					}elseif(!$task->hasCancelledRun()){
+						/*
+						 * It's possible for a task to submit a progress update and then finish before the progress
+						 * update is detected by the parent thread, so here we consume any missed updates.
+						 *
+						 * When this happens, it's possible for a progress update to arrive between the previous
+						 * checkProgressUpdates() call and the next isGarbage() call, causing progress updates to be
+						 * lost. Thus, it's necessary to do one last check here to make sure all progress updates have
+						 * been consumed before completing.
+						 */
+						$task->checkProgressUpdates();
+						$task->onCompletion();
+					}
+				}else{
+					break; //current task is still running, skip to next worker
+				}
+			}
+			if($doGC){
+				$this->workers[$worker]->collect();
 			}
 		}
-
-		$this->collectWorkers();
 	}
 
 	public function shutdownUnusedWorkers() : int{
 		$ret = 0;
 		$time = time();
-		foreach($this->workerUsage as $i => $usage){
-			if($usage === 0 and (!isset($this->workerLastUsed[$i]) or $this->workerLastUsed[$i] + 300 < $time)){
+		foreach($this->taskQueues as $i => $queue){
+			if((!isset($this->workerLastUsed[$i]) or $this->workerLastUsed[$i] + 300 < $time) and $queue->isEmpty()){
 				$this->workers[$i]->quit();
-				unset($this->workers[$i], $this->workerUsage[$i], $this->workerLastUsed[$i]);
+				unset($this->workers[$i], $this->taskQueues[$i], $this->workerLastUsed[$i]);
 				$ret++;
 			}
 		}
@@ -351,11 +282,26 @@ class AsyncPool{
 	 */
 	public function shutdown() : void{
 		$this->collectTasks();
-		$this->removeTasks();
+
+		foreach($this->workers as $worker){
+			/** @var AsyncTask $task */
+			while(($task = $worker->unstack()) !== null){
+				//NOOP: the below loop will deal with marking tasks as garbage
+			}
+		}
+		foreach($this->taskQueues as $queue){
+			while(!$queue->isEmpty()){
+				/** @var AsyncTask $task */
+				$task = $queue->dequeue();
+				$task->cancelRun();
+			}
+		}
+
 		foreach($this->workers as $worker){
 			$worker->quit();
 		}
 		$this->workers = [];
+		$this->taskQueues = [];
 		$this->workerLastUsed = [];
 	}
 }

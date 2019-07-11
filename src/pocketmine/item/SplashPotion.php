@@ -23,20 +23,17 @@ declare(strict_types=1);
 
 namespace pocketmine\item;
 
+use pocketmine\entity\projectile\SplashPotion as SplashPotionEntity;
 use pocketmine\nbt\tag\CompoundTag;
 
 class SplashPotion extends ProjectileItem{
-
-	public function __construct(int $meta = 0){
-		parent::__construct(self::SPLASH_POTION, $meta, "Splash Potion");
-	}
 
 	public function getMaxStackSize() : int{
 		return 1;
 	}
 
-	public function getProjectileEntityType() : string{
-		return "ThrownPotion";
+	public function getProjectileEntityClass() : string{
+		return SplashPotionEntity::class;
 	}
 
 	public function getThrowForce() : float{

@@ -29,13 +29,14 @@ use pocketmine\event\entity\ProjectileHitEvent;
 use pocketmine\event\inventory\InventoryPickupArrowEvent;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
-use pocketmine\level\Level;
 use pocketmine\math\RayTraceResult;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\EntityEventPacket;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use pocketmine\network\mcpe\protocol\TakeItemEntityPacket;
-use pocketmine\Player;
+use pocketmine\network\mcpe\protocol\types\EntityMetadataFlags;
+use pocketmine\player\Player;
+use pocketmine\world\sound\ArrowHitSound;
+use pocketmine\world\World;
 use function mt_rand;
 use function sqrt;
 
@@ -66,31 +67,31 @@ class Arrow extends Projectile{
 	/** @var int */
 	protected $collideTicks = 0;
 
-	public function __construct(Level $level, CompoundTag $nbt, ?Entity $shootingEntity = null, bool $critical = false){
-		parent::__construct($level, $nbt, $shootingEntity);
+	public function __construct(World $world, CompoundTag $nbt, ?Entity $shootingEntity = null, bool $critical = false){
+		parent::__construct($world, $nbt, $shootingEntity);
 		$this->setCritical($critical);
 	}
 
-	protected function initEntity() : void{
-		parent::initEntity();
+	protected function initEntity(CompoundTag $nbt) : void{
+		parent::initEntity($nbt);
 
-		$this->pickupMode = $this->namedtag->getByte(self::TAG_PICKUP, self::PICKUP_ANY, true);
-		$this->collideTicks = $this->namedtag->getShort("life", $this->collideTicks);
+		$this->pickupMode = $nbt->getByte(self::TAG_PICKUP, self::PICKUP_ANY, true);
+		$this->collideTicks = $nbt->getShort("life", $this->collideTicks);
 	}
 
-	public function saveNBT() : void{
-		parent::saveNBT();
-
-		$this->namedtag->setByte(self::TAG_PICKUP, $this->pickupMode, true);
-		$this->namedtag->setShort("life", $this->collideTicks);
+	public function saveNBT() : CompoundTag{
+		$nbt = parent::saveNBT();
+		$nbt->setByte(self::TAG_PICKUP, $this->pickupMode);
+		$nbt->setShort("life", $this->collideTicks);
+		return $nbt;
 	}
 
 	public function isCritical() : bool{
-		return $this->getGenericFlag(self::DATA_FLAG_CRITICAL);
+		return $this->getGenericFlag(EntityMetadataFlags::CRITICAL);
 	}
 
 	public function setCritical(bool $value = true) : void{
-		$this->setGenericFlag(self::DATA_FLAG_CRITICAL, $value);
+		$this->setGenericFlag(EntityMetadataFlags::CRITICAL, $value);
 	}
 
 	public function getResultDamage() : int{
@@ -116,7 +117,7 @@ class Arrow extends Projectile{
 		$this->punchKnockback = $punchKnockback;
 	}
 
-	public function entityBaseTick(int $tickDiff = 1) : bool{
+	protected function entityBaseTick(int $tickDiff = 1) : bool{
 		if($this->closed){
 			return false;
 		}
@@ -138,7 +139,7 @@ class Arrow extends Projectile{
 
 	protected function onHit(ProjectileHitEvent $event) : void{
 		$this->setCritical(false);
-		$this->level->broadcastLevelSoundEvent($this, LevelSoundEventPacket::SOUND_BOW_HIT);
+		$this->world->addSound($this, new ArrowHitSound());
 	}
 
 	protected function onHitBlock(Block $blockHit, RayTraceResult $hitResult) : void{
@@ -179,7 +180,7 @@ class Arrow extends Projectile{
 		$item = ItemFactory::get(Item::ARROW, 0, 1);
 
 		$playerInventory = $player->getInventory();
-		if($player->isSurvival() and !$playerInventory->canAddItem($item)){
+		if($player->hasFiniteResources() and !$playerInventory->canAddItem($item)){
 			return;
 		}
 
@@ -193,10 +194,7 @@ class Arrow extends Projectile{
 			return;
 		}
 
-		$pk = new TakeItemEntityPacket();
-		$pk->eid = $player->getId();
-		$pk->target = $this->getId();
-		$this->server->broadcastPacket($this->getViewers(), $pk);
+		$this->server->broadcastPacket($this->getViewers(), TakeItemEntityPacket::create($player->getId(), $this->getId()));
 
 		$playerInventory->addItem(clone $item);
 		$this->flagForDespawn();

@@ -53,10 +53,9 @@ class TaskScheduler{
 	protected $currentTick = 0;
 
 	/**
-	 * @param \Logger     $logger @deprecated
 	 * @param null|string $owner
 	 */
-	public function __construct(\Logger $logger, ?string $owner = null){
+	public function __construct(?string $owner = null){
 		$this->owner = $owner;
 		$this->queue = new ReversePriorityQueue();
 	}
@@ -66,7 +65,7 @@ class TaskScheduler{
 	 *
 	 * @return TaskHandler
 	 */
-	public function scheduleTask(Task $task){
+	public function scheduleTask(Task $task) : TaskHandler{
 		return $this->addTask($task, -1, -1);
 	}
 
@@ -76,7 +75,7 @@ class TaskScheduler{
 	 *
 	 * @return TaskHandler
 	 */
-	public function scheduleDelayedTask(Task $task, int $delay){
+	public function scheduleDelayedTask(Task $task, int $delay) : TaskHandler{
 		return $this->addTask($task, $delay, -1);
 	}
 
@@ -86,7 +85,7 @@ class TaskScheduler{
 	 *
 	 * @return TaskHandler
 	 */
-	public function scheduleRepeatingTask(Task $task, int $period){
+	public function scheduleRepeatingTask(Task $task, int $period) : TaskHandler{
 		return $this->addTask($task, -1, $period);
 	}
 
@@ -97,14 +96,14 @@ class TaskScheduler{
 	 *
 	 * @return TaskHandler
 	 */
-	public function scheduleDelayedRepeatingTask(Task $task, int $delay, int $period){
+	public function scheduleDelayedRepeatingTask(Task $task, int $delay, int $period) : TaskHandler{
 		return $this->addTask($task, $delay, $period);
 	}
 
 	/**
 	 * @param int $taskId
 	 */
-	public function cancelTask(int $taskId){
+	public function cancelTask(int $taskId) : void{
 		if(isset($this->tasks[$taskId])){
 			try{
 				$this->tasks[$taskId]->cancel();
@@ -114,7 +113,7 @@ class TaskScheduler{
 		}
 	}
 
-	public function cancelAllTasks(){
+	public function cancelAllTasks() : void{
 		foreach($this->tasks as $id => $task){
 			$this->cancelTask($id);
 		}
@@ -143,7 +142,7 @@ class TaskScheduler{
 	 *
 	 * @throws \InvalidStateException
 	 */
-	private function addTask(Task $task, int $delay, int $period){
+	private function addTask(Task $task, int $delay, int $period) : TaskHandler{
 		if(!$this->enabled){
 			throw new \InvalidStateException("Tried to schedule task to disabled scheduler");
 		}
@@ -187,7 +186,7 @@ class TaskScheduler{
 	/**
 	 * @param int $currentTick
 	 */
-	public function mainThreadHeartbeat(int $currentTick){
+	public function mainThreadHeartbeat(int $currentTick) : void{
 		$this->currentTick = $currentTick;
 		while($this->isReady($this->currentTick)){
 			/** @var TaskHandler $task */

@@ -23,634 +23,865 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe;
 
-use pocketmine\network\mcpe\protocol\AddBehaviorTreePacket;
-use pocketmine\network\mcpe\protocol\AddEntityPacket;
-use pocketmine\network\mcpe\protocol\AddItemEntityPacket;
-use pocketmine\network\mcpe\protocol\AddPaintingPacket;
-use pocketmine\network\mcpe\protocol\AddPlayerPacket;
+use Mdanter\Ecc\Crypto\Key\PublicKeyInterface;
+use pocketmine\entity\effect\EffectInstance;
+use pocketmine\entity\Human;
+use pocketmine\entity\Living;
+use pocketmine\event\player\PlayerCreationEvent;
+use pocketmine\event\server\DataPacketReceiveEvent;
+use pocketmine\event\server\DataPacketSendEvent;
+use pocketmine\form\Form;
+use pocketmine\math\Vector3;
+use pocketmine\network\BadPacketException;
+use pocketmine\network\mcpe\compression\CompressBatchPromise;
+use pocketmine\network\mcpe\compression\Zlib;
+use pocketmine\network\mcpe\encryption\NetworkCipher;
+use pocketmine\network\mcpe\encryption\PrepareEncryptionTask;
+use pocketmine\network\mcpe\handler\DeathPacketHandler;
+use pocketmine\network\mcpe\handler\HandshakePacketHandler;
+use pocketmine\network\mcpe\handler\InGamePacketHandler;
+use pocketmine\network\mcpe\handler\LoginPacketHandler;
+use pocketmine\network\mcpe\handler\NullPacketHandler;
+use pocketmine\network\mcpe\handler\PacketHandler;
+use pocketmine\network\mcpe\handler\PreSpawnPacketHandler;
+use pocketmine\network\mcpe\handler\ResourcePacksPacketHandler;
 use pocketmine\network\mcpe\protocol\AdventureSettingsPacket;
-use pocketmine\network\mcpe\protocol\AnimatePacket;
-use pocketmine\network\mcpe\protocol\AutomationClientConnectPacket;
 use pocketmine\network\mcpe\protocol\AvailableCommandsPacket;
-use pocketmine\network\mcpe\protocol\AvailableEntityIdentifiersPacket;
-use pocketmine\network\mcpe\protocol\BiomeDefinitionListPacket;
-use pocketmine\network\mcpe\protocol\BlockEntityDataPacket;
-use pocketmine\network\mcpe\protocol\BlockEventPacket;
-use pocketmine\network\mcpe\protocol\BlockPickRequestPacket;
-use pocketmine\network\mcpe\protocol\BookEditPacket;
-use pocketmine\network\mcpe\protocol\BossEventPacket;
-use pocketmine\network\mcpe\protocol\CameraPacket;
-use pocketmine\network\mcpe\protocol\ChangeDimensionPacket;
 use pocketmine\network\mcpe\protocol\ChunkRadiusUpdatedPacket;
-use pocketmine\network\mcpe\protocol\ClientboundMapItemDataPacket;
-use pocketmine\network\mcpe\protocol\ClientToServerHandshakePacket;
-use pocketmine\network\mcpe\protocol\CommandBlockUpdatePacket;
-use pocketmine\network\mcpe\protocol\CommandOutputPacket;
-use pocketmine\network\mcpe\protocol\CommandRequestPacket;
-use pocketmine\network\mcpe\protocol\ContainerClosePacket;
-use pocketmine\network\mcpe\protocol\ContainerOpenPacket;
-use pocketmine\network\mcpe\protocol\ContainerSetDataPacket;
-use pocketmine\network\mcpe\protocol\CraftingDataPacket;
-use pocketmine\network\mcpe\protocol\CraftingEventPacket;
-use pocketmine\network\mcpe\protocol\DataPacket;
+use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use pocketmine\network\mcpe\protocol\DisconnectPacket;
-use pocketmine\network\mcpe\protocol\EntityEventPacket;
-use pocketmine\network\mcpe\protocol\EntityFallPacket;
-use pocketmine\network\mcpe\protocol\EntityPickRequestPacket;
-use pocketmine\network\mcpe\protocol\EventPacket;
-use pocketmine\network\mcpe\protocol\ExplodePacket;
-use pocketmine\network\mcpe\protocol\FullChunkDataPacket;
-use pocketmine\network\mcpe\protocol\GameRulesChangedPacket;
-use pocketmine\network\mcpe\protocol\GuiDataPickItemPacket;
-use pocketmine\network\mcpe\protocol\HurtArmorPacket;
-use pocketmine\network\mcpe\protocol\InteractPacket;
-use pocketmine\network\mcpe\protocol\InventoryContentPacket;
-use pocketmine\network\mcpe\protocol\InventorySlotPacket;
-use pocketmine\network\mcpe\protocol\InventoryTransactionPacket;
-use pocketmine\network\mcpe\protocol\ItemFrameDropItemPacket;
-use pocketmine\network\mcpe\protocol\LabTablePacket;
-use pocketmine\network\mcpe\protocol\LecternUpdatePacket;
-use pocketmine\network\mcpe\protocol\LevelEventPacket;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacketV1;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacketV2;
-use pocketmine\network\mcpe\protocol\LoginPacket;
-use pocketmine\network\mcpe\protocol\MapCreateLockedCopyPacket;
-use pocketmine\network\mcpe\protocol\MapInfoRequestPacket;
+use pocketmine\network\mcpe\protocol\GarbageServerboundPacket;
 use pocketmine\network\mcpe\protocol\MobArmorEquipmentPacket;
 use pocketmine\network\mcpe\protocol\MobEffectPacket;
 use pocketmine\network\mcpe\protocol\MobEquipmentPacket;
 use pocketmine\network\mcpe\protocol\ModalFormRequestPacket;
-use pocketmine\network\mcpe\protocol\ModalFormResponsePacket;
-use pocketmine\network\mcpe\protocol\MoveEntityAbsolutePacket;
-use pocketmine\network\mcpe\protocol\MoveEntityDeltaPacket;
 use pocketmine\network\mcpe\protocol\MovePlayerPacket;
 use pocketmine\network\mcpe\protocol\NetworkChunkPublisherUpdatePacket;
-use pocketmine\network\mcpe\protocol\NetworkStackLatencyPacket;
-use pocketmine\network\mcpe\protocol\NpcRequestPacket;
-use pocketmine\network\mcpe\protocol\OnScreenTextureAnimationPacket;
-use pocketmine\network\mcpe\protocol\PhotoTransferPacket;
-use pocketmine\network\mcpe\protocol\PlayerActionPacket;
-use pocketmine\network\mcpe\protocol\PlayerHotbarPacket;
-use pocketmine\network\mcpe\protocol\PlayerInputPacket;
+use pocketmine\network\mcpe\protocol\Packet;
 use pocketmine\network\mcpe\protocol\PlayerListPacket;
-use pocketmine\network\mcpe\protocol\PlayerSkinPacket;
-use pocketmine\network\mcpe\protocol\PlaySoundPacket;
 use pocketmine\network\mcpe\protocol\PlayStatusPacket;
-use pocketmine\network\mcpe\protocol\PurchaseReceiptPacket;
-use pocketmine\network\mcpe\protocol\RemoveEntityPacket;
 use pocketmine\network\mcpe\protocol\RemoveObjectivePacket;
-use pocketmine\network\mcpe\protocol\RequestChunkRadiusPacket;
-use pocketmine\network\mcpe\protocol\ResourcePackChunkDataPacket;
-use pocketmine\network\mcpe\protocol\ResourcePackChunkRequestPacket;
-use pocketmine\network\mcpe\protocol\ResourcePackClientResponsePacket;
-use pocketmine\network\mcpe\protocol\ResourcePackDataInfoPacket;
-use pocketmine\network\mcpe\protocol\ResourcePacksInfoPacket;
-use pocketmine\network\mcpe\protocol\ResourcePackStackPacket;
-use pocketmine\network\mcpe\protocol\RespawnPacket;
-use pocketmine\network\mcpe\protocol\RiderJumpPacket;
-use pocketmine\network\mcpe\protocol\ScriptCustomEventPacket;
-use pocketmine\network\mcpe\protocol\ServerSettingsRequestPacket;
-use pocketmine\network\mcpe\protocol\ServerSettingsResponsePacket;
+use pocketmine\network\mcpe\protocol\ServerboundPacket;
 use pocketmine\network\mcpe\protocol\ServerToClientHandshakePacket;
-use pocketmine\network\mcpe\protocol\SetCommandsEnabledPacket;
-use pocketmine\network\mcpe\protocol\SetDefaultGameTypePacket;
-use pocketmine\network\mcpe\protocol\SetDifficultyPacket;
 use pocketmine\network\mcpe\protocol\SetDisplayObjectivePacket;
-use pocketmine\network\mcpe\protocol\SetEntityDataPacket;
-use pocketmine\network\mcpe\protocol\SetEntityLinkPacket;
-use pocketmine\network\mcpe\protocol\SetEntityMotionPacket;
-use pocketmine\network\mcpe\protocol\SetHealthPacket;
-use pocketmine\network\mcpe\protocol\SetLastHurtByPacket;
-use pocketmine\network\mcpe\protocol\SetLocalPlayerAsInitializedPacket;
 use pocketmine\network\mcpe\protocol\SetPlayerGameTypePacket;
-use pocketmine\network\mcpe\protocol\SetScoreboardIdentityPacket;
 use pocketmine\network\mcpe\protocol\SetScorePacket;
 use pocketmine\network\mcpe\protocol\SetSpawnPositionPacket;
-use pocketmine\network\mcpe\protocol\SetTimePacket;
-use pocketmine\network\mcpe\protocol\SetTitlePacket;
-use pocketmine\network\mcpe\protocol\ShowCreditsPacket;
-use pocketmine\network\mcpe\protocol\ShowProfilePacket;
-use pocketmine\network\mcpe\protocol\ShowStoreOfferPacket;
-use pocketmine\network\mcpe\protocol\SimpleEventPacket;
-use pocketmine\network\mcpe\protocol\SpawnExperienceOrbPacket;
-use pocketmine\network\mcpe\protocol\SpawnParticleEffectPacket;
-use pocketmine\network\mcpe\protocol\StartGamePacket;
-use pocketmine\network\mcpe\protocol\StopSoundPacket;
-use pocketmine\network\mcpe\protocol\StructureBlockUpdatePacket;
-use pocketmine\network\mcpe\protocol\SubClientLoginPacket;
-use pocketmine\network\mcpe\protocol\TakeItemEntityPacket;
 use pocketmine\network\mcpe\protocol\TextPacket;
 use pocketmine\network\mcpe\protocol\TransferPacket;
+use pocketmine\network\mcpe\protocol\types\CommandData;
+use pocketmine\network\mcpe\protocol\types\CommandEnum;
+use pocketmine\network\mcpe\protocol\types\CommandParameter;
+use pocketmine\network\mcpe\protocol\types\ContainerIds;
+use pocketmine\network\mcpe\protocol\types\PlayerListEntry;
+use pocketmine\network\mcpe\protocol\types\PlayerPermissions;
+use pocketmine\network\mcpe\protocol\types\ScorePacketEntry;
 use pocketmine\network\mcpe\protocol\UpdateAttributesPacket;
-use pocketmine\network\mcpe\protocol\UpdateBlockPacket;
-use pocketmine\network\mcpe\protocol\UpdateBlockSyncedPacket;
-use pocketmine\network\mcpe\protocol\UpdateEquipPacket;
-use pocketmine\network\mcpe\protocol\UpdateSoftEnumPacket;
-use pocketmine\network\mcpe\protocol\UpdateTradePacket;
-use pocketmine\network\mcpe\protocol\VideoStreamConnectPacket;
+use pocketmine\network\NetworkSessionManager;
+use pocketmine\player\GameMode;
+use pocketmine\player\Player;
+use pocketmine\player\PlayerInfo;
+use pocketmine\scoreboard\Scoreboard;
+use pocketmine\Server;
+use pocketmine\timings\Timings;
+use pocketmine\utils\BinaryDataException;
+use pocketmine\utils\TextFormat;
+use pocketmine\utils\Utils;
+use pocketmine\world\Position;
+use function array_map;
+use function assert;
+use function base64_encode;
+use function bin2hex;
+use function count;
+use function get_class;
+use function in_array;
+use function json_encode;
+use function json_last_error_msg;
+use function strlen;
+use function strtolower;
+use function substr;
+use function time;
+use function ucfirst;
+
+class NetworkSession{
+	/** @var \PrefixedLogger */
+	private $logger;
+	/** @var Server */
+	private $server;
+	/** @var Player|null */
+	private $player = null;
+	/** @var NetworkSessionManager */
+	private $manager;
+	/** @var string */
+	private $ip;
+	/** @var int */
+	private $port;
+	/** @var PlayerInfo */
+	private $info;
+	/** @var int */
+	private $ping;
+
+	/** @var PacketHandler */
+	private $handler;
+
+	/** @var bool */
+	private $connected = true;
+	/** @var bool */
+	private $disconnectGuard = false;
+	/** @var bool */
+	private $loggedIn = false;
+	/** @var bool */
+	private $authenticated = false;
+	/** @var int */
+	private $connectTime;
+
+	/** @var NetworkCipher */
+	private $cipher;
+
+	/** @var PacketBatch|null */
+	private $sendBuffer;
+
+	/** @var \SplQueue|CompressBatchPromise[] */
+	private $compressedQueue;
+
+	/** @var InventoryManager|null */
+	private $invManager = null;
+
+	/** @var PacketSender */
+	private $sender;
+
+	public function __construct(Server $server, NetworkSessionManager $manager, PacketSender $sender, string $ip, int $port){
+		$this->server = $server;
+		$this->manager = $manager;
+		$this->sender = $sender;
+		$this->ip = $ip;
+		$this->port = $port;
+
+		$this->logger = new \PrefixedLogger($this->server->getLogger(), $this->getLogPrefix());
+
+		$this->compressedQueue = new \SplQueue();
+
+		$this->connectTime = time();
+
+		$this->setHandler(new LoginPacketHandler($this->server, $this));
+
+		$this->manager->add($this);
+		$this->logger->info("Session opened");
+	}
+
+	private function getLogPrefix() : string{
+		return "NetworkSession: " . $this->getDisplayName();
+	}
+
+	public function getLogger() : \Logger{
+		return $this->logger;
+	}
+
+	protected function createPlayer() : void{
+		$ev = new PlayerCreationEvent($this);
+		$ev->call();
+		$class = $ev->getPlayerClass();
 
-abstract class NetworkSession{
+		/**
+		 * @var Player $player
+		 * @see Player::__construct()
+		 */
+		$this->player = new $class($this->server, $this, $this->info, $this->authenticated);
 
-	abstract public function handleDataPacket(DataPacket $packet);
-
-	public function handleLogin(LoginPacket $packet) : bool{
-		return false;
-	}
-
-	public function handlePlayStatus(PlayStatusPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleServerToClientHandshake(ServerToClientHandshakePacket $packet) : bool{
-		return false;
-	}
-
-	public function handleClientToServerHandshake(ClientToServerHandshakePacket $packet) : bool{
-		return false;
-	}
-
-	public function handleDisconnect(DisconnectPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleResourcePacksInfo(ResourcePacksInfoPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleResourcePackStack(ResourcePackStackPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleResourcePackClientResponse(ResourcePackClientResponsePacket $packet) : bool{
-		return false;
-	}
-
-	public function handleText(TextPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleSetTime(SetTimePacket $packet) : bool{
-		return false;
-	}
-
-	public function handleStartGame(StartGamePacket $packet) : bool{
-		return false;
-	}
-
-	public function handleAddPlayer(AddPlayerPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleAddEntity(AddEntityPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleRemoveEntity(RemoveEntityPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleAddItemEntity(AddItemEntityPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleTakeItemEntity(TakeItemEntityPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleMoveEntityAbsolute(MoveEntityAbsolutePacket $packet) : bool{
-		return false;
-	}
-
-	public function handleMovePlayer(MovePlayerPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleRiderJump(RiderJumpPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleUpdateBlock(UpdateBlockPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleAddPainting(AddPaintingPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleExplode(ExplodePacket $packet) : bool{
-		return false;
-	}
-
-	public function handleLevelSoundEventPacketV1(LevelSoundEventPacketV1 $packet) : bool{
-		return false;
-	}
-
-	public function handleLevelEvent(LevelEventPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleBlockEvent(BlockEventPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleEntityEvent(EntityEventPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleMobEffect(MobEffectPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleUpdateAttributes(UpdateAttributesPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleInventoryTransaction(InventoryTransactionPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleMobEquipment(MobEquipmentPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleMobArmorEquipment(MobArmorEquipmentPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleInteract(InteractPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleBlockPickRequest(BlockPickRequestPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleEntityPickRequest(EntityPickRequestPacket $packet) : bool{
-		return false;
-	}
-
-	public function handlePlayerAction(PlayerActionPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleEntityFall(EntityFallPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleHurtArmor(HurtArmorPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleSetEntityData(SetEntityDataPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleSetEntityMotion(SetEntityMotionPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleSetEntityLink(SetEntityLinkPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleSetHealth(SetHealthPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleSetSpawnPosition(SetSpawnPositionPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleAnimate(AnimatePacket $packet) : bool{
-		return false;
-	}
-
-	public function handleRespawn(RespawnPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleContainerOpen(ContainerOpenPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleContainerClose(ContainerClosePacket $packet) : bool{
-		return false;
-	}
-
-	public function handlePlayerHotbar(PlayerHotbarPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleInventoryContent(InventoryContentPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleInventorySlot(InventorySlotPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleContainerSetData(ContainerSetDataPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleCraftingData(CraftingDataPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleCraftingEvent(CraftingEventPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleGuiDataPickItem(GuiDataPickItemPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleAdventureSettings(AdventureSettingsPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleBlockEntityData(BlockEntityDataPacket $packet) : bool{
-		return false;
-	}
-
-	public function handlePlayerInput(PlayerInputPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleFullChunkData(FullChunkDataPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleSetCommandsEnabled(SetCommandsEnabledPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleSetDifficulty(SetDifficultyPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleChangeDimension(ChangeDimensionPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleSetPlayerGameType(SetPlayerGameTypePacket $packet) : bool{
-		return false;
-	}
-
-	public function handlePlayerList(PlayerListPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleSimpleEvent(SimpleEventPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleEvent(EventPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleSpawnExperienceOrb(SpawnExperienceOrbPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleClientboundMapItemData(ClientboundMapItemDataPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleMapInfoRequest(MapInfoRequestPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleRequestChunkRadius(RequestChunkRadiusPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleChunkRadiusUpdated(ChunkRadiusUpdatedPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleItemFrameDropItem(ItemFrameDropItemPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleGameRulesChanged(GameRulesChangedPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleCamera(CameraPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleBossEvent(BossEventPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleShowCredits(ShowCreditsPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleAvailableCommands(AvailableCommandsPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleCommandRequest(CommandRequestPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleCommandBlockUpdate(CommandBlockUpdatePacket $packet) : bool{
-		return false;
-	}
-
-	public function handleCommandOutput(CommandOutputPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleUpdateTrade(UpdateTradePacket $packet) : bool{
-		return false;
-	}
-
-	public function handleUpdateEquip(UpdateEquipPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleResourcePackDataInfo(ResourcePackDataInfoPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleResourcePackChunkData(ResourcePackChunkDataPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleResourcePackChunkRequest(ResourcePackChunkRequestPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleTransfer(TransferPacket $packet) : bool{
-		return false;
-	}
-
-	public function handlePlaySound(PlaySoundPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleStopSound(StopSoundPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleSetTitle(SetTitlePacket $packet) : bool{
-		return false;
-	}
-
-	public function handleAddBehaviorTree(AddBehaviorTreePacket $packet) : bool{
-		return false;
-	}
-
-	public function handleStructureBlockUpdate(StructureBlockUpdatePacket $packet) : bool{
-		return false;
-	}
-
-	public function handleShowStoreOffer(ShowStoreOfferPacket $packet) : bool{
-		return false;
-	}
-
-	public function handlePurchaseReceipt(PurchaseReceiptPacket $packet) : bool{
-		return false;
-	}
-
-	public function handlePlayerSkin(PlayerSkinPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleSubClientLogin(SubClientLoginPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleAutomationClientConnect(AutomationClientConnectPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleSetLastHurtBy(SetLastHurtByPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleBookEdit(BookEditPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleNpcRequest(NpcRequestPacket $packet) : bool{
-		return false;
-	}
-
-	public function handlePhotoTransfer(PhotoTransferPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleModalFormRequest(ModalFormRequestPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleModalFormResponse(ModalFormResponsePacket $packet) : bool{
-		return false;
-	}
-
-	public function handleServerSettingsRequest(ServerSettingsRequestPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleServerSettingsResponse(ServerSettingsResponsePacket $packet) : bool{
-		return false;
-	}
-
-	public function handleShowProfile(ShowProfilePacket $packet) : bool{
-		return false;
-	}
-
-	public function handleSetDefaultGameType(SetDefaultGameTypePacket $packet) : bool{
-		return false;
-	}
-
-	public function handleRemoveObjective(RemoveObjectivePacket $packet) : bool{
-		return false;
-	}
-
-	public function handleSetDisplayObjective(SetDisplayObjectivePacket $packet) : bool{
-		return false;
-	}
-
-	public function handleSetScore(SetScorePacket $packet) : bool{
-		return false;
-	}
-
-	public function handleLabTable(LabTablePacket $packet) : bool{
-		return false;
-	}
-
-	public function handleUpdateBlockSynced(UpdateBlockSyncedPacket $packet) : bool{
-		return false;
+		$this->invManager = new InventoryManager($this->player, $this);
 	}
-
-	public function handleMoveEntityDelta(MoveEntityDeltaPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleSetScoreboardIdentity(SetScoreboardIdentityPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleSetLocalPlayerAsInitialized(SetLocalPlayerAsInitializedPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleUpdateSoftEnum(UpdateSoftEnumPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleNetworkStackLatency(NetworkStackLatencyPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleScriptCustomEvent(ScriptCustomEventPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleSpawnParticleEffect(SpawnParticleEffectPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleAvailableEntityIdentifiers(AvailableEntityIdentifiersPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleLevelSoundEventPacketV2(LevelSoundEventPacketV2 $packet) : bool{
-		return false;
-	}
-
-	public function handleNetworkChunkPublisherUpdate(NetworkChunkPublisherUpdatePacket $packet) : bool{
-		return false;
-	}
-
-	public function handleBiomeDefinitionList(BiomeDefinitionListPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleLevelSoundEvent(LevelSoundEventPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleLecternUpdate(LecternUpdatePacket $packet) : bool{
-		return false;
-	}
-
-	public function handleVideoStreamConnect(VideoStreamConnectPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleMapCreateLockedCopy(MapCreateLockedCopyPacket $packet) : bool{
-		return false;
-	}
-
-	public function handleOnScreenTextureAnimation(OnScreenTextureAnimationPacket $packet) : bool{
-		return false;
+
+	public function getPlayer() : ?Player{
+		return $this->player;
+	}
+
+	public function getPlayerInfo() : ?PlayerInfo{
+		return $this->info;
+	}
+
+	/**
+	 * TODO: this shouldn't be accessible after the initial login phase
+	 *
+	 * @param PlayerInfo $info
+	 * @throws \InvalidStateException
+	 */
+	public function setPlayerInfo(PlayerInfo $info) : void{
+		if($this->info !== null){
+			throw new \InvalidStateException("Player info has already been set");
+		}
+		$this->info = $info;
+		$this->logger->info("Player: " . TextFormat::AQUA . $info->getUsername() . TextFormat::RESET);
+		$this->logger->setPrefix($this->getLogPrefix());
+	}
+
+	public function isConnected() : bool{
+		return $this->connected;
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getIp() : string{
+		return $this->ip;
+	}
+
+	/**
+	 * @return int
+	 */
+	public function getPort() : int{
+		return $this->port;
+	}
+
+	public function getDisplayName() : string{
+		return $this->info !== null ? $this->info->getUsername() : $this->ip . " " . $this->port;
+	}
+
+	/**
+	 * Returns the last recorded ping measurement for this session, in milliseconds.
+	 *
+	 * @return int
+	 */
+	public function getPing() : int{
+		return $this->ping;
+	}
+
+	/**
+	 * @internal Called by the network interface to update last recorded ping measurements.
+	 *
+	 * @param int $ping
+	 */
+	public function updatePing(int $ping) : void{
+		$this->ping = $ping;
+	}
+
+	public function getHandler() : PacketHandler{
+		return $this->handler;
+	}
+
+	public function setHandler(PacketHandler $handler) : void{
+		if($this->connected){ //TODO: this is fine since we can't handle anything from a disconnected session, but it might produce surprises in some cases
+			$this->handler = $handler;
+			$this->handler->setUp();
+		}
+	}
+
+	/**
+	 * @param string $payload
+	 *
+	 * @throws BadPacketException
+	 */
+	public function handleEncoded(string $payload) : void{
+		if(!$this->connected){
+			return;
+		}
+
+		if($this->cipher !== null){
+			Timings::$playerNetworkReceiveDecryptTimer->startTiming();
+			try{
+				$payload = $this->cipher->decrypt($payload);
+			}catch(\UnexpectedValueException $e){
+				$this->logger->debug("Encrypted packet: " . base64_encode($payload));
+				throw new BadPacketException("Packet decryption error: " . $e->getMessage(), 0, $e);
+			}finally{
+				Timings::$playerNetworkReceiveDecryptTimer->stopTiming();
+			}
+		}
+
+		Timings::$playerNetworkReceiveDecompressTimer->startTiming();
+		try{
+			$stream = new PacketBatch(Zlib::decompress($payload));
+		}catch(\ErrorException $e){
+			$this->logger->debug("Failed to decompress packet: " . base64_encode($payload));
+			//TODO: this isn't incompatible game version if we already established protocol version
+			throw new BadPacketException("Compressed packet batch decode error: " . $e->getMessage(), 0, $e);
+		}finally{
+			Timings::$playerNetworkReceiveDecompressTimer->stopTiming();
+		}
+
+		$count = 0;
+		while(!$stream->feof() and $this->connected){
+			if($count++ >= 500){
+				throw new BadPacketException("Too many packets in a single batch");
+			}
+			try{
+				$pk = $stream->getPacket();
+			}catch(BinaryDataException $e){
+				$this->logger->debug("Packet batch: " . base64_encode($stream->getBuffer()));
+				throw new BadPacketException("Packet batch decode error: " . $e->getMessage(), 0, $e);
+			}
+
+			try{
+				$this->handleDataPacket($pk);
+			}catch(BadPacketException $e){
+				$this->logger->debug($pk->getName() . ": " . base64_encode($pk->getBuffer()));
+				throw new BadPacketException("Error processing " . $pk->getName() . ": " . $e->getMessage(), 0, $e);
+			}
+		}
+	}
+
+	/**
+	 * @param Packet $packet
+	 *
+	 * @throws BadPacketException
+	 */
+	public function handleDataPacket(Packet $packet) : void{
+		if(!($packet instanceof ServerboundPacket)){
+			if($packet instanceof GarbageServerboundPacket){
+				$this->logger->debug("Garbage serverbound " . $packet->getName() . ": " . base64_encode($packet->getBuffer()));
+				return;
+			}
+			throw new BadPacketException("Unexpected non-serverbound packet");
+		}
+
+		$timings = Timings::getReceiveDataPacketTimings($packet);
+		$timings->startTiming();
+
+		try{
+			$packet->decode();
+			if(!$packet->feof()){
+				$remains = substr($packet->getBuffer(), $packet->getOffset());
+				$this->logger->debug("Still " . strlen($remains) . " bytes unread in " . $packet->getName() . ": " . bin2hex($remains));
+			}
+
+			$ev = new DataPacketReceiveEvent($this, $packet);
+			$ev->call();
+			if(!$ev->isCancelled() and !$packet->handle($this->handler)){
+				$this->logger->debug("Unhandled " . $packet->getName() . ": " . base64_encode($packet->getBuffer()));
+			}
+		}finally{
+			$timings->stopTiming();
+		}
+	}
+
+	public function sendDataPacket(ClientboundPacket $packet, bool $immediate = false) : bool{
+		//Basic safety restriction. TODO: improve this
+		if(!$this->loggedIn and !$packet->canBeSentBeforeLogin()){
+			throw new \InvalidArgumentException("Attempted to send " . get_class($packet) . " to " . $this->getDisplayName() . " too early");
+		}
+
+		$timings = Timings::getSendDataPacketTimings($packet);
+		$timings->startTiming();
+		try{
+			$ev = new DataPacketSendEvent($this, $packet);
+			$ev->call();
+			if($ev->isCancelled()){
+				return false;
+			}
+
+			$this->addToSendBuffer($packet);
+			if($immediate){
+				$this->flushSendBuffer(true);
+			}
+
+			return true;
+		}finally{
+			$timings->stopTiming();
+		}
+	}
+
+	/**
+	 * @internal
+	 * @param ClientboundPacket $packet
+	 */
+	public function addToSendBuffer(ClientboundPacket $packet) : void{
+		$timings = Timings::getSendDataPacketTimings($packet);
+		$timings->startTiming();
+		try{
+			if($this->sendBuffer === null){
+				$this->sendBuffer = new PacketBatch();
+			}
+			$this->sendBuffer->putPacket($packet);
+			$this->manager->scheduleUpdate($this); //schedule flush at end of tick
+		}finally{
+			$timings->stopTiming();
+		}
+	}
+
+	private function flushSendBuffer(bool $immediate = false) : void{
+		if($this->sendBuffer !== null){
+			$promise = $this->server->prepareBatch($this->sendBuffer, $immediate);
+			$this->sendBuffer = null;
+			$this->queueCompressed($promise, $immediate);
+		}
+	}
+
+	public function queueCompressed(CompressBatchPromise $payload, bool $immediate = false) : void{
+		$this->flushSendBuffer($immediate); //Maintain ordering if possible
+		if($immediate){
+			//Skips all queues
+			$this->sendEncoded($payload->getResult(), true);
+		}else{
+			$this->compressedQueue->enqueue($payload);
+			$payload->onResolve(function(CompressBatchPromise $payload) : void{
+				if($this->connected and $this->compressedQueue->bottom() === $payload){
+					$this->compressedQueue->dequeue(); //result unused
+					$this->sendEncoded($payload->getResult());
+
+					while(!$this->compressedQueue->isEmpty()){
+						/** @var CompressBatchPromise $current */
+						$current = $this->compressedQueue->bottom();
+						if($current->hasResult()){
+							$this->compressedQueue->dequeue();
+
+							$this->sendEncoded($current->getResult());
+						}else{
+							//can't send any more queued until this one is ready
+							break;
+						}
+					}
+				}
+			});
+		}
+	}
+
+	private function sendEncoded(string $payload, bool $immediate = false) : void{
+		if($this->cipher !== null){
+			Timings::$playerNetworkSendEncryptTimer->startTiming();
+			$payload = $this->cipher->encrypt($payload);
+			Timings::$playerNetworkSendEncryptTimer->stopTiming();
+		}
+		$this->sender->send($payload, $immediate);
+	}
+
+	private function tryDisconnect(\Closure $func, string $reason) : void{
+		if($this->connected and !$this->disconnectGuard){
+			$this->disconnectGuard = true;
+			$func();
+			$this->disconnectGuard = false;
+			$this->setHandler(NullPacketHandler::getInstance());
+			$this->connected = false;
+			$this->manager->remove($this);
+			$this->logger->info("Session closed due to $reason");
+
+			$this->invManager = null; //break cycles - TODO: this really ought to be deferred until it's safe
+		}
+	}
+
+	/**
+	 * Disconnects the session, destroying the associated player (if it exists).
+	 *
+	 * @param string $reason
+	 * @param bool   $notify
+	 */
+	public function disconnect(string $reason, bool $notify = true) : void{
+		$this->tryDisconnect(function() use ($reason, $notify){
+			if($this->player !== null){
+				$this->player->disconnect($reason, null, $notify);
+			}
+			$this->doServerDisconnect($reason, $notify);
+		}, $reason);
+	}
+
+	/**
+	 * Instructs the remote client to connect to a different server.
+	 *
+	 * @param string $ip
+	 * @param int    $port
+	 * @param string $reason
+	 *
+	 * @throws \UnsupportedOperationException
+	 */
+	public function transfer(string $ip, int $port, string $reason = "transfer") : void{
+		$this->tryDisconnect(function() use ($ip, $port, $reason){
+			$this->sendDataPacket(TransferPacket::create($ip, $port), true);
+			$this->disconnect($reason, false);
+			if($this->player !== null){
+				$this->player->disconnect($reason, null, false);
+			}
+			$this->doServerDisconnect($reason, false);
+		}, $reason);
+	}
+
+	/**
+	 * Called by the Player when it is closed (for example due to getting kicked).
+	 *
+	 * @param string $reason
+	 * @param bool   $notify
+	 */
+	public function onPlayerDestroyed(string $reason, bool $notify = true) : void{
+		$this->tryDisconnect(function() use ($reason, $notify){
+			$this->doServerDisconnect($reason, $notify);
+		}, $reason);
+	}
+
+	/**
+	 * Internal helper function used to handle server disconnections.
+	 *
+	 * @param string $reason
+	 * @param bool   $notify
+	 */
+	private function doServerDisconnect(string $reason, bool $notify = true) : void{
+		if($notify){
+			$this->sendDataPacket($reason === "" ? DisconnectPacket::silent() : DisconnectPacket::message($reason), true);
+		}
+
+		$this->sender->close($notify ? $reason : "");
+	}
+
+	/**
+	 * Called by the network interface to close the session when the client disconnects without server input, for
+	 * example in a timeout condition or voluntary client disconnect.
+	 *
+	 * @param string $reason
+	 */
+	public function onClientDisconnect(string $reason) : void{
+		$this->tryDisconnect(function() use ($reason){
+			if($this->player !== null){
+				$this->player->disconnect($reason, null, false);
+			}
+		}, $reason);
+	}
+
+	public function setAuthenticationStatus(bool $authenticated, bool $authRequired, ?string $error, PublicKeyInterface $clientPubKey) : void{
+		if(!$this->connected){
+			return;
+		}
+		if($authenticated and $this->info->getXuid() === ""){
+			$error = "Expected XUID but none found";
+		}elseif(!$authenticated and $this->info->getXuid() !== ""){
+			$error = "Unexpected XUID for non-XBOX-authenticated player";
+		}
+
+		if($error !== null){
+			$this->disconnect($this->server->getLanguage()->translateString("pocketmine.disconnect.invalidSession", [$error]));
+
+			return;
+		}
+
+		$this->authenticated = $authenticated;
+
+		if(!$this->authenticated and $authRequired){
+			$this->disconnect("disconnectionScreen.notAuthenticated");
+			return;
+		}
+		$this->logger->debug("Xbox Live authenticated: " . ($this->authenticated ? "YES" : "NO"));
+
+		if($this->manager->kickDuplicates($this)){
+			if(NetworkCipher::$ENABLED){
+				$this->server->getAsyncPool()->submitTask(new PrepareEncryptionTask($this, $clientPubKey));
+			}else{
+				$this->onLoginSuccess();
+			}
+		}
+	}
+
+	public function enableEncryption(string $encryptionKey, string $handshakeJwt) : void{
+		if(!$this->connected){
+			return;
+		}
+		$this->sendDataPacket(ServerToClientHandshakePacket::create($handshakeJwt), true); //make sure this gets sent before encryption is enabled
+
+		$this->cipher = new NetworkCipher($encryptionKey);
+
+		$this->setHandler(new HandshakePacketHandler($this));
+		$this->logger->debug("Enabled encryption");
+	}
+
+	public function onLoginSuccess() : void{
+		$this->loggedIn = true;
+
+		$this->sendDataPacket(PlayStatusPacket::create(PlayStatusPacket::LOGIN_SUCCESS));
+
+		$this->logger->debug("Initiating resource packs phase");
+		$this->setHandler(new ResourcePacksPacketHandler($this, $this->server->getResourcePackManager()));
+	}
+
+	public function onResourcePacksDone() : void{
+		$this->createPlayer();
+
+		$this->setHandler(new PreSpawnPacketHandler($this->server, $this->player, $this));
+		$this->logger->debug("Waiting for spawn chunks");
+	}
+
+	public function onTerrainReady() : void{
+		$this->logger->debug("Sending spawn notification, waiting for spawn response");
+		$this->sendDataPacket(PlayStatusPacket::create(PlayStatusPacket::PLAYER_SPAWN));
+	}
+
+	public function onSpawn() : void{
+		$this->logger->debug("Received spawn response, entering in-game phase");
+		$this->player->doFirstSpawn();
+		$this->setHandler(new InGamePacketHandler($this->player, $this));
+	}
+
+	public function onDeath() : void{
+		$this->setHandler(new DeathPacketHandler($this->player, $this));
+	}
+
+	public function onRespawn() : void{
+		$this->player->sendData($this->player);
+		$this->player->sendData($this->player->getViewers());
+
+		$this->syncAdventureSettings($this->player);
+		$this->invManager->syncAll();
+		$this->setHandler(new InGamePacketHandler($this->player, $this));
+	}
+
+	public function syncMovement(Vector3 $pos, ?float $yaw = null, ?float $pitch = null, int $mode = MovePlayerPacket::MODE_NORMAL) : void{
+		$yaw = $yaw ?? $this->player->getYaw();
+		$pitch = $pitch ?? $this->player->getPitch();
+
+		$pk = new MovePlayerPacket();
+		$pk->entityRuntimeId = $this->player->getId();
+		$pk->position = $this->player->getOffsetPosition($pos);
+		$pk->pitch = $pitch;
+		$pk->headYaw = $yaw;
+		$pk->yaw = $yaw;
+		$pk->mode = $mode;
+
+		$this->sendDataPacket($pk);
+	}
+
+	public function syncViewAreaRadius(int $distance) : void{
+		$this->sendDataPacket(ChunkRadiusUpdatedPacket::create($distance));
+	}
+
+	public function syncViewAreaCenterPoint(Vector3 $newPos, int $viewDistance) : void{
+		$this->sendDataPacket(NetworkChunkPublisherUpdatePacket::create($newPos->getFloorX(), $newPos->getFloorY(), $newPos->getFloorZ(), $viewDistance * 16)); //blocks, not chunks >.>
+	}
+
+	public function syncPlayerSpawnPoint(Position $newSpawn) : void{
+		$this->sendDataPacket(SetSpawnPositionPacket::playerSpawn($newSpawn->getFloorX(), $newSpawn->getFloorY(), $newSpawn->getFloorZ(), false)); //TODO: spawn forced
+	}
+
+	public function syncGameMode(GameMode $mode, bool $isRollback = false) : void{
+		$this->sendDataPacket(SetPlayerGameTypePacket::create(self::getClientFriendlyGamemode($mode)));
+		$this->syncAdventureSettings($this->player);
+		if(!$isRollback){
+			$this->invManager->syncCreative();
+		}
+	}
+
+	/**
+	 * TODO: make this less specialized
+	 *
+	 * @param Player $for
+	 */
+	public function syncAdventureSettings(Player $for) : void{
+		$pk = new AdventureSettingsPacket();
+
+		$pk->setFlag(AdventureSettingsPacket::WORLD_IMMUTABLE, $for->isSpectator());
+		$pk->setFlag(AdventureSettingsPacket::NO_PVP, $for->isSpectator());
+		$pk->setFlag(AdventureSettingsPacket::AUTO_JUMP, $for->hasAutoJump());
+		$pk->setFlag(AdventureSettingsPacket::ALLOW_FLIGHT, $for->getAllowFlight());
+		$pk->setFlag(AdventureSettingsPacket::NO_CLIP, $for->isSpectator());
+		$pk->setFlag(AdventureSettingsPacket::FLYING, $for->isFlying());
+
+		//TODO: permission flags
+
+		$pk->commandPermission = ($for->isOp() ? AdventureSettingsPacket::PERMISSION_OPERATOR : AdventureSettingsPacket::PERMISSION_NORMAL);
+		$pk->playerPermission = ($for->isOp() ? PlayerPermissions::OPERATOR : PlayerPermissions::MEMBER);
+		$pk->entityUniqueId = $for->getId();
+
+		$this->sendDataPacket($pk);
+	}
+
+	public function syncAttributes(Living $entity, bool $sendAll = false){
+		$entries = $sendAll ? $entity->getAttributeMap()->getAll() : $entity->getAttributeMap()->needSend();
+		if(count($entries) > 0){
+			$this->sendDataPacket(UpdateAttributesPacket::create($entity->getId(), $entries));
+			foreach($entries as $entry){
+				$entry->markSynchronized();
+			}
+		}
+	}
+
+	public function onEntityEffectAdded(Living $entity, EffectInstance $effect, bool $replacesOldEffect) : void{
+		$this->sendDataPacket(MobEffectPacket::add($entity->getId(), $replacesOldEffect, $effect->getId(), $effect->getAmplifier(), $effect->isVisible(), $effect->getDuration()));
+	}
+
+	public function onEntityEffectRemoved(Living $entity, EffectInstance $effect) : void{
+		$this->sendDataPacket(MobEffectPacket::remove($entity->getId(), $effect->getId()));
+	}
+
+	public function syncAvailableCommands() : void{
+		$pk = new AvailableCommandsPacket();
+		foreach($this->server->getCommandMap()->getCommands() as $name => $command){
+			if(isset($pk->commandData[$command->getName()]) or $command->getName() === "help" or !$command->testPermissionSilent($this->player)){
+				continue;
+			}
+
+			$lname = strtolower($command->getName());
+			$aliases = $command->getAliases();
+			$aliasObj = null;
+			if(!empty($aliases)){
+				if(!in_array($lname, $aliases, true)){
+					//work around a client bug which makes the original name not show when aliases are used
+					$aliases[] = $lname;
+				}
+				$aliasObj = new CommandEnum(ucfirst($command->getName()) . "Aliases", $aliases);
+			}
+
+			$data = new CommandData(
+				$lname, //TODO: commands containing uppercase letters in the name crash 1.9.0 client
+				$this->server->getLanguage()->translateString($command->getDescription()),
+				0,
+				0,
+				$aliasObj,
+				[
+					[CommandParameter::standard("args", AvailableCommandsPacket::ARG_TYPE_RAWTEXT, true)]
+				]
+			);
+
+			$pk->commandData[$command->getName()] = $data;
+		}
+
+		$this->sendDataPacket($pk);
+	}
+
+	public function onRawChatMessage(string $message) : void{
+		$this->sendDataPacket(TextPacket::raw($message));
+	}
+
+	public function onTranslatedChatMessage(string $key, array $parameters) : void{
+		$this->sendDataPacket(TextPacket::translation($key, $parameters));
+	}
+
+	public function onPopup(string $message) : void{
+		$this->sendDataPacket(TextPacket::popup($message));
+	}
+
+	public function onTip(string $message) : void{
+		$this->sendDataPacket(TextPacket::tip($message));
+	}
+
+	public function onFormSent(int $id, Form $form) : bool{
+		$formData = json_encode($form);
+		if($formData === false){
+			throw new \InvalidArgumentException("Failed to encode form JSON: " . json_last_error_msg());
+		}
+		return $this->sendDataPacket(ModalFormRequestPacket::create($id, $formData));
+	}
+
+	/**
+	 * Instructs the networksession to start using the chunk at the given coordinates. This may occur asynchronously.
+	 * @param int      $chunkX
+	 * @param int      $chunkZ
+	 * @param \Closure $onCompletion To be called when chunk sending has completed.
+	 */
+	public function startUsingChunk(int $chunkX, int $chunkZ, \Closure $onCompletion) : void{
+		Utils::validateCallableSignature(function(int $chunkX, int $chunkZ){}, $onCompletion);
+
+		$world = $this->player->getWorld();
+		assert($world !== null);
+		ChunkCache::getInstance($world)->request($chunkX, $chunkZ)->onResolve(
+
+			//this callback may be called synchronously or asynchronously, depending on whether the promise is resolved yet
+			function(CompressBatchPromise $promise) use ($world, $chunkX, $chunkZ, $onCompletion){
+				if(!$this->isConnected()){
+					return;
+				}
+				if($world !== $this->player->getWorld() or !$this->player->isUsingChunk($chunkX, $chunkZ)){
+					$this->logger->debug("Tried to send no-longer-active chunk $chunkX $chunkZ in world " . $world->getFolderName());
+					return;
+				}
+				$this->player->world->timings->syncChunkSendTimer->startTiming();
+				try{
+					$this->queueCompressed($promise);
+					$onCompletion($chunkX, $chunkZ);
+				}finally{
+					$this->player->world->timings->syncChunkSendTimer->stopTiming();
+				}
+			}
+		);
+	}
+
+	public function stopUsingChunk(int $chunkX, int $chunkZ) : void{
+
+	}
+
+	/**
+	 * @return InventoryManager
+	 */
+	public function getInvManager() : InventoryManager{
+		return $this->invManager;
+	}
+
+	/**
+	 * TODO: expand this to more than just humans
+	 * TODO: offhand
+	 *
+	 * @param Human $mob
+	 */
+	public function onMobEquipmentChange(Human $mob) : void{
+		//TODO: we could send zero for slot here because remote players don't need to know which slot was selected
+		$inv = $mob->getInventory();
+		$this->sendDataPacket(MobEquipmentPacket::create($mob->getId(), $inv->getItemInHand(), $inv->getHeldItemIndex(), ContainerIds::INVENTORY));
+	}
+
+	public function onMobArmorChange(Living $mob) : void{
+		$inv = $mob->getArmorInventory();
+		$this->sendDataPacket(MobArmorEquipmentPacket::create($mob->getId(), $inv->getHelmet(), $inv->getChestplate(), $inv->getLeggings(), $inv->getBoots()));
+	}
+
+	public function syncPlayerList() : void{
+		$this->sendDataPacket(PlayerListPacket::add(array_map(function(Player $player){
+			return PlayerListEntry::createAdditionEntry($player->getUniqueId(), $player->getId(), $player->getDisplayName(), $player->getSkin(), $player->getXuid());
+		}, $this->server->getOnlinePlayers())));
+	}
+
+	public function onPlayerAdded(Player $p) : void{
+		$this->sendDataPacket(PlayerListPacket::add([PlayerListEntry::createAdditionEntry($p->getUniqueId(), $p->getId(), $p->getDisplayName(), $p->getSkin(), $p->getXuid())]));
+	}
+
+	public function onPlayerRemoved(Player $p) : void{
+		if($p !== $this->player){
+			$this->sendDataPacket(PlayerListPacket::remove([PlayerListEntry::createRemovalEntry($p->getUniqueId())]));
+		}
+	}
+
+	public function onScoreboardAdded(Scoreboard $scoreboard) : void{
+		$objective = $scoreboard->getObjective();
+		$this->sendDataPacket(SetDisplayObjectivePacket::create(
+			$objective->displaySlot->name(),
+			$objective->objectiveName,
+			$objective->displayName,
+			$objective->criteriaName,
+			$objective->sortOrder->getMagicNumber()
+		));
+		$this->sendDataPacket(SetScorePacket::change($scoreboard->getEntries()));
+	}
+
+	public function onScoreboardChanged(ScorePacketEntry $entry, bool $remove) : void{
+		$this->sendDataPacket($remove ? SetScorePacket::remove([$entry]) : SetScorePacket::change([$entry]));
+	}
+
+	public function onScoreboardRemoved(Scoreboard $scoreboard) : void{
+		$this->sendDataPacket(RemoveObjectivePacket::create($scoreboard->getObjective()->objectiveName));
+		$this->sendDataPacket(SetScorePacket::remove($scoreboard->getEntries()));
+	}
+
+	public function tick() : bool{
+		if($this->info === null){
+			if(time() >= $this->connectTime + 10){
+				$this->disconnect("Login timeout");
+				return false;
+			}
+
+			return true; //keep ticking until timeout
+		}
+
+		if($this->sendBuffer !== null){
+			$this->flushSendBuffer();
+		}
+
+		return false;
+	}
+
+	/**
+	 * Returns a client-friendly gamemode of the specified real gamemode
+	 * This function takes care of handling gamemodes known to MCPE (as of 1.1.0.3, that includes Survival, Creative and Adventure)
+	 *
+	 * @internal
+	 * @param GameMode $gamemode
+	 *
+	 * @return int
+	 */
+	public static function getClientFriendlyGamemode(GameMode $gamemode) : int{
+		if($gamemode->equals(GameMode::SPECTATOR())){
+			return GameMode::CREATIVE()->getMagicNumber();
+		}
+
+		return $gamemode->getMagicNumber();
 	}
 }

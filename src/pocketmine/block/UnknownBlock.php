@@ -27,8 +27,8 @@ use pocketmine\item\Item;
 
 class UnknownBlock extends Transparent{
 
-	public function getHardness() : float{
-		return 0;
+	public function __construct(BlockIdentifier $idInfo, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, "Unknown", $breakInfo ?? BlockBreakInfo::instant());
 	}
 
 	public function canBePlaced() : bool{

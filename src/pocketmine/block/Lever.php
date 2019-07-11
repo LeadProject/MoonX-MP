@@ -23,70 +23,102 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
-use pocketmine\Player;
+use pocketmine\player\Player;
+use pocketmine\world\BlockTransaction;
+use pocketmine\world\sound\RedstonePowerOffSound;
+use pocketmine\world\sound\RedstonePowerOnSound;
 
 class Lever extends Flowable{
+	protected const BOTTOM = 0;
+	protected const SIDE = 1;
+	protected const TOP = 2;
 
-	protected $id = self::LEVER;
+	/** @var int */
+	protected $position = self::BOTTOM;
+	/** @var int */
+	protected $facing = Facing::NORTH;
+	/** @var bool */
+	protected $powered = false;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.5));
 	}
 
-	public function getName() : string{
-		return "Lever";
+	protected function writeStateToMeta() : int{
+		if($this->position === self::BOTTOM){
+			$rotationMeta = Facing::axis($this->facing) === Facing::AXIS_Z ? 7 : 0;
+		}elseif($this->position === self::TOP){
+			$rotationMeta = Facing::axis($this->facing) === Facing::AXIS_Z ? 5 : 6;
+		}else{
+			$rotationMeta = 6 - $this->facing;
+		}
+		return $rotationMeta | ($this->powered ? BlockLegacyMetadata::LEVER_FLAG_POWERED : 0);
 	}
 
-	public function getHardness() : float{
-		return 0.5;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$rotationMeta = $stateMeta & 0x07;
+		if($rotationMeta === 5 or $rotationMeta === 6){
+			$this->position = self::TOP;
+			$this->facing = $rotationMeta === 5 ? Facing::SOUTH : Facing::EAST;
+		}elseif($rotationMeta === 7 or $rotationMeta === 0){
+			$this->position = self::BOTTOM;
+			$this->facing = $rotationMeta === 7 ? Facing::SOUTH : Facing::EAST;
+		}else{
+			$this->position = self::SIDE;
+			$this->facing = BlockDataValidator::readHorizontalFacing(6 - $rotationMeta);
+		}
+
+		$this->powered = ($stateMeta & BlockLegacyMetadata::LEVER_FLAG_POWERED) !== 0;
 	}
 
-	public function getVariantBitmask() : int{
-		return 0;
+	public function getStateBitmask() : int{
+		return 0b1111;
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if(!$blockClicked->isSolid()){
 			return false;
 		}
 
-		if($face === Vector3::SIDE_DOWN){
-			$this->meta = 0;
-		}else{
-			$this->meta = 6 - $face;
-		}
-
-		if($player !== null){
-			if(($player->getDirection() & 0x01) === 0){
-				if($face === Vector3::SIDE_UP){
-					$this->meta = 6;
-				}
-			}else{
-				if($face === Vector3::SIDE_DOWN){
-					$this->meta = 7;
-				}
+		if(Facing::axis($face) === Facing::AXIS_Y){
+			if($player !== null){
+				$this->facing = Facing::opposite($player->getHorizontalFacing());
 			}
+			$this->position = $face === Facing::DOWN ? self::BOTTOM : self::TOP;
+		}else{
+			$this->facing = $face;
+			$this->position = self::SIDE;
 		}
 
-		return $this->level->setBlock($blockReplace, $this, true, true);
+		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 	}
 
 	public function onNearbyBlockChange() : void{
-		$faces = [
-			0 => Vector3::SIDE_UP,
-			1 => Vector3::SIDE_WEST,
-			2 => Vector3::SIDE_EAST,
-			3 => Vector3::SIDE_NORTH,
-			4 => Vector3::SIDE_SOUTH,
-			5 => Vector3::SIDE_DOWN,
-			6 => Vector3::SIDE_DOWN,
-			7 => Vector3::SIDE_UP
-		];
-		if(!$this->getSide($faces[$this->meta & 0x07])->isSolid()){
-			$this->level->useBreakOn($this);
+		if($this->position === self::BOTTOM){
+			$face = Facing::UP;
+		}elseif($this->position === self::TOP){
+			$face = Facing::DOWN;
+		}else{
+			$face = Facing::opposite($this->facing);
 		}
+
+		if(!$this->getSide($face)->isSolid()){
+			$this->world->useBreakOn($this);
+		}
+	}
+
+	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		$this->powered = !$this->powered;
+		$this->world->setBlock($this, $this);
+		$this->world->addSound(
+			$this->add(0.5, 0.5, 0.5),
+			$this->powered ? new RedstonePowerOnSound() : new RedstonePowerOffSound()
+		);
+		return true;
 	}
 
 	//TODO

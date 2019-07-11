@@ -26,9 +26,9 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class BlockEntityDataPacket extends DataPacket{
+class BlockEntityDataPacket extends DataPacket implements ClientboundPacket, ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::BLOCK_ENTITY_DATA_PACKET;
 
 	/** @var int */
@@ -40,17 +40,24 @@ class BlockEntityDataPacket extends DataPacket{
 	/** @var string */
 	public $namedtag;
 
-	protected function decodePayload(){
+	public static function create(int $x, int $y, int $z, string $nbt) : self{
+		$result = new self;
+		[$result->x, $result->y, $result->z] = [$x, $y, $z];
+		$result->namedtag = $nbt;
+		return $result;
+	}
+
+	protected function decodePayload() : void{
 		$this->getBlockPosition($this->x, $this->y, $this->z);
 		$this->namedtag = $this->getRemaining();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putBlockPosition($this->x, $this->y, $this->z);
 		$this->put($this->namedtag);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleBlockEntityData($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleBlockEntityData($this);
 	}
 }

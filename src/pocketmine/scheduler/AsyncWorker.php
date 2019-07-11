@@ -23,13 +23,9 @@ declare(strict_types=1);
 
 namespace pocketmine\scheduler;
 
-use pocketmine\utils\MainLogger;
-use pocketmine\utils\Utils;
-use pocketmine\Worker;
-use function error_reporting;
+use pocketmine\thread\Worker;
 use function gc_enable;
 use function ini_set;
-use function set_error_handler;
 
 class AsyncWorker extends Worker{
 	/** @var mixed[] */
@@ -47,17 +43,8 @@ class AsyncWorker extends Worker{
 		$this->memoryLimit = $memoryLimit;
 	}
 
-	public function run(){
-		error_reporting(-1);
-
-		$this->registerClassLoader();
-
-		//set this after the autoloader is registered
-		set_error_handler([Utils::class, 'errorExceptionHandler']);
-
-		if($this->logger instanceof MainLogger){
-			$this->logger->registerStatic();
-		}
+	protected function onRun() : void{
+		\GlobalLogger::set($this->logger);
 
 		gc_enable();
 
@@ -74,12 +61,12 @@ class AsyncWorker extends Worker{
 		return $this->logger;
 	}
 
-	public function handleException(\Throwable $e){
+	public function handleException(\Throwable $e) : void{
 		$this->logger->logException($e);
 	}
 
 	public function getThreadName() : string{
-		return "Asynchronous Worker #" . $this->id;
+		return "AsyncWorker#" . $this->id;
 	}
 
 	public function getAsyncWorkerId() : int{
@@ -94,6 +81,9 @@ class AsyncWorker extends Worker{
 	 * @param mixed  $value
 	 */
 	public function saveToThreadStore(string $identifier, $value) : void{
+		if(\Thread::getCurrentThread() !== $this){
+			throw new \InvalidStateException("Thread-local data can only be stored in the thread context");
+		}
 		self::$store[$identifier] = $value;
 	}
 
@@ -110,6 +100,9 @@ class AsyncWorker extends Worker{
 	 * @return mixed
 	 */
 	public function getFromThreadStore(string $identifier){
+		if(\Thread::getCurrentThread() !== $this){
+			throw new \InvalidStateException("Thread-local data can only be fetched in the thread context");
+		}
 		return self::$store[$identifier] ?? null;
 	}
 
@@ -119,6 +112,9 @@ class AsyncWorker extends Worker{
 	 * @param string $identifier
 	 */
 	public function removeFromThreadStore(string $identifier) : void{
+		if(\Thread::getCurrentThread() !== $this){
+			throw new \InvalidStateException("Thread-local data can only be removed in the thread context");
+		}
 		unset(self::$store[$identifier]);
 	}
 }

@@ -26,9 +26,8 @@ namespace pocketmine\command\defaults;
 use pocketmine\command\CommandSender;
 use pocketmine\command\utils\InvalidCommandSyntaxException;
 use pocketmine\lang\TranslationContainer;
-use pocketmine\Player;
+use pocketmine\player\Player;
 use pocketmine\scheduler\BulkCurlTask;
-use pocketmine\Server;
 use pocketmine\timings\TimingsHandler;
 use pocketmine\utils\InternetException;
 use function count;
@@ -123,6 +122,8 @@ class TimingsCommand extends VanillaCommand{
 				$host = $sender->getServer()->getProperty("timings.host", "timings.pmmp.io");
 
 				$sender->getServer()->getAsyncPool()->submitTask(new class($sender, $host, $agent, $data) extends BulkCurlTask{
+					private const TLS_KEY_SENDER = "sender";
+
 					/** @var string */
 					private $host;
 
@@ -138,18 +139,20 @@ class TimingsCommand extends VanillaCommand{
 								CURLOPT_AUTOREFERER => false,
 								CURLOPT_FOLLOWLOCATION => false
 							]]
-						], $sender);
+						]);
 						$this->host = $host;
+						$this->storeLocal(self::TLS_KEY_SENDER, $sender);
 					}
 
-					public function onCompletion(Server $server){
-						$sender = $this->fetchLocal();
+					public function onCompletion() : void{
+						/** @var CommandSender $sender */
+						$sender = $this->fetchLocal(self::TLS_KEY_SENDER);
 						if($sender instanceof Player and !$sender->isOnline()){ // TODO replace with a more generic API method for checking availability of CommandSender
 							return;
 						}
 						$result = $this->getResult()[0];
 						if($result instanceof InternetException){
-							$server->getLogger()->logException($result);
+							$sender->getServer()->getLogger()->logException($result);
 							return;
 						}
 						if(isset($result[0]) && is_array($response = json_decode($result[0], true)) && isset($response["id"])){

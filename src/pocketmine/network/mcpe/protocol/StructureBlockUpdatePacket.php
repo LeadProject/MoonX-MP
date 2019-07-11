@@ -25,20 +25,20 @@ namespace pocketmine\network\mcpe\protocol;
 
 #include <rules/DataPacket.h>
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class StructureBlockUpdatePacket extends DataPacket{
+class StructureBlockUpdatePacket extends DataPacket implements ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::STRUCTURE_BLOCK_UPDATE_PACKET;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		//TODO
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		//TODO
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleStructureBlockUpdate($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleStructureBlockUpdate($this);
 	}
 }

@@ -25,17 +25,11 @@ namespace pocketmine\block;
 
 class StoneButton extends Button{
 
-	protected $id = self::STONE_BUTTON;
-
-	public function getName() : string{
-		return "Stone Button";
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.5, BlockToolType::PICKAXE));
 	}
 
-	public function getHardness() : float{
-		return 0.5;
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_PICKAXE;
+	protected function getActivationTime() : int{
+		return 20;
 	}
 }

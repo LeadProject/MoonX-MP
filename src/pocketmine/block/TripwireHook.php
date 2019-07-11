@@ -23,20 +23,50 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
+use pocketmine\item\Item;
+use pocketmine\math\Bearing;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
+use pocketmine\player\Player;
+use pocketmine\world\BlockTransaction;
+
 class TripwireHook extends Flowable{
 
-	protected $id = self::TRIPWIRE_HOOK;
+	/** @var int */
+	protected $facing = Facing::NORTH;
+	/** @var bool */
+	protected $connected = false;
+	/** @var bool */
+	protected $powered = false;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? BlockBreakInfo::instant());
 	}
 
-	public function getName() : string{
-		return "Tripwire Hook";
+	protected function writeStateToMeta() : int{
+		return Bearing::fromFacing($this->facing) |
+			($this->connected ? BlockLegacyMetadata::TRIPWIRE_HOOK_FLAG_CONNECTED : 0) |
+			($this->powered ? BlockLegacyMetadata::TRIPWIRE_HOOK_FLAG_POWERED : 0);
 	}
 
-	public function getVariantBitmask() : int{
-		return 0;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->facing = BlockDataValidator::readLegacyHorizontalFacing($stateMeta & 0x03);
+		$this->connected = ($stateMeta & BlockLegacyMetadata::TRIPWIRE_HOOK_FLAG_CONNECTED) !== 0;
+		$this->powered = ($stateMeta & BlockLegacyMetadata::TRIPWIRE_HOOK_FLAG_POWERED) !== 0;
+	}
+
+	public function getStateBitmask() : int{
+		return 0b1111;
+	}
+
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		if(Facing::axis($face) !== Facing::AXIS_Y){
+			//TODO: check face is valid
+			$this->facing = $face;
+			return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+		}
+		return false;
 	}
 
 	//TODO

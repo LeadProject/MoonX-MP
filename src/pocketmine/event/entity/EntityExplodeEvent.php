@@ -26,12 +26,15 @@ namespace pocketmine\event\entity;
 use pocketmine\block\Block;
 use pocketmine\entity\Entity;
 use pocketmine\event\Cancellable;
-use pocketmine\level\Position;
+use pocketmine\event\CancellableTrait;
+use pocketmine\world\Position;
 
 /**
  * Called when a entity explodes
  */
 class EntityExplodeEvent extends EntityEvent implements Cancellable{
+	use CancellableTrait;
+
 	/** @var Position */
 	protected $position;
 

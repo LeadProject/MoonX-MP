@@ -26,11 +26,11 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 use pocketmine\resourcepacks\ResourcePack;
 use function count;
 
-class ResourcePacksInfoPacket extends DataPacket{
+class ResourcePacksInfoPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::RESOURCE_PACKS_INFO_PACKET;
 
 	/** @var bool */
@@ -42,7 +42,24 @@ class ResourcePacksInfoPacket extends DataPacket{
 	/** @var ResourcePack[] */
 	public $resourcePackEntries = [];
 
-	protected function decodePayload(){
+	/**
+	 * @param ResourcePack[] $resourcePacks
+	 * @param ResourcePack[] $behaviorPacks
+	 * @param bool           $mustAccept
+	 * @param bool           $hasScripts
+	 *
+	 * @return ResourcePacksInfoPacket
+	 */
+	public static function create(array $resourcePacks, array $behaviorPacks, bool $mustAccept, bool $hasScripts = false) : self{
+		$result = new self;
+		$result->mustAccept = $mustAccept;
+		$result->hasScripts = $hasScripts;
+		$result->resourcePackEntries = $resourcePacks;
+		$result->behaviorPackEntries = $behaviorPacks;
+		return $result;
+	}
+
+	protected function decodePayload() : void{
 		$this->mustAccept = $this->getBool();
 		$this->hasScripts = $this->getBool();
 		$behaviorPackCount = $this->getLShort();
@@ -68,7 +85,7 @@ class ResourcePacksInfoPacket extends DataPacket{
 		}
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putBool($this->mustAccept);
 		$this->putBool($this->hasScripts);
 		$this->putLShort(count($this->behaviorPackEntries));
@@ -93,7 +110,7 @@ class ResourcePacksInfoPacket extends DataPacket{
 		}
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleResourcePacksInfo($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleResourcePacksInfo($this);
 	}
 }

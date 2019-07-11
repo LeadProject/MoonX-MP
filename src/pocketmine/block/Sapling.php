@@ -23,56 +23,55 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\TreeType;
+use pocketmine\item\Fertilizer;
 use pocketmine\item\Item;
-use pocketmine\level\generator\object\Tree;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
-use pocketmine\Player;
+use pocketmine\player\Player;
 use pocketmine\utils\Random;
+use pocketmine\world\BlockTransaction;
+use pocketmine\world\generator\object\Tree;
 use function mt_rand;
 
 class Sapling extends Flowable{
-	public const OAK = 0;
-	public const SPRUCE = 1;
-	public const BIRCH = 2;
-	public const JUNGLE = 3;
-	public const ACACIA = 4;
-	public const DARK_OAK = 5;
 
-	protected $id = self::SAPLING;
+	/** @var bool */
+	protected $ready = false;
+	/** @var TreeType */
+	private $treeType;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(BlockIdentifier $idInfo, string $name, TreeType $treeType, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? BlockBreakInfo::instant());
+		$this->treeType = $treeType;
 	}
 
-	public function getName() : string{
-		static $names = [
-			0 => "Oak Sapling",
-			1 => "Spruce Sapling",
-			2 => "Birch Sapling",
-			3 => "Jungle Sapling",
-			4 => "Acacia Sapling",
-			5 => "Dark Oak Sapling"
-		];
-		return $names[$this->getVariant()] ?? "Unknown";
+	protected function writeStateToMeta() : int{
+		return ($this->ready ? BlockLegacyMetadata::SAPLING_FLAG_READY : 0);
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		$down = $this->getSide(Vector3::SIDE_DOWN);
-		if($down->getId() === self::GRASS or $down->getId() === self::DIRT or $down->getId() === self::FARMLAND){
-			$this->getLevel()->setBlock($blockReplace, $this, true, true);
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->ready = ($stateMeta & BlockLegacyMetadata::SAPLING_FLAG_READY) !== 0;
+	}
 
-			return true;
+	public function getStateBitmask() : int{
+		return 0b1000;
+	}
+
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		$down = $this->getSide(Facing::DOWN);
+		if($down->getId() === BlockLegacyIds::GRASS or $down->getId() === BlockLegacyIds::DIRT or $down->getId() === BlockLegacyIds::FARMLAND){
+			return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 		}
 
 		return false;
 	}
 
-	public function onActivate(Item $item, Player $player = null) : bool{
-		if($item->getId() === Item::DYE and $item->getDamage() === 0x0F){ //Bonemeal
-			//TODO: change log type
-			Tree::growTree($this->getLevel(), $this->x, $this->y, $this->z, new Random(mt_rand()), $this->getVariant());
+	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		if($item instanceof Fertilizer){
+			Tree::growTree($this->getWorld(), $this->x, $this->y, $this->z, new Random(mt_rand()), $this->treeType);
 
-			$item->count--;
+			$item->pop();
 
 			return true;
 		}
@@ -81,8 +80,8 @@ class Sapling extends Flowable{
 	}
 
 	public function onNearbyBlockChange() : void{
-		if($this->getSide(Vector3::SIDE_DOWN)->isTransparent()){
-			$this->getLevel()->useBreakOn($this);
+		if($this->getSide(Facing::DOWN)->isTransparent()){
+			$this->getWorld()->useBreakOn($this);
 		}
 	}
 
@@ -91,18 +90,14 @@ class Sapling extends Flowable{
 	}
 
 	public function onRandomTick() : void{
-		if($this->level->getFullLightAt($this->x, $this->y, $this->z) >= 8 and mt_rand(1, 7) === 1){
-			if(($this->meta & 0x08) === 0x08){
-				Tree::growTree($this->getLevel(), $this->x, $this->y, $this->z, new Random(mt_rand()), $this->getVariant());
+		if($this->world->getFullLightAt($this->x, $this->y, $this->z) >= 8 and mt_rand(1, 7) === 1){
+			if($this->ready){
+				Tree::growTree($this->getWorld(), $this->x, $this->y, $this->z, new Random(mt_rand()), $this->treeType);
 			}else{
-				$this->meta |= 0x08;
-				$this->getLevel()->setBlock($this, $this, true);
+				$this->ready = true;
+				$this->getWorld()->setBlock($this, $this);
 			}
 		}
-	}
-
-	public function getVariantBitmask() : int{
-		return 0x07;
 	}
 
 	public function getFuelTime() : int{

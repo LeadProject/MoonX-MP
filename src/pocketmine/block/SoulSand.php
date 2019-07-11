@@ -24,36 +24,15 @@ declare(strict_types=1);
 namespace pocketmine\block;
 
 use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
 
 class SoulSand extends Solid{
 
-	protected $id = self::SOUL_SAND;
-
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
-	}
-
-	public function getName() : string{
-		return "Soul Sand";
-	}
-
-	public function getHardness() : float{
-		return 0.5;
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_SHOVEL;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.5, BlockToolType::SHOVEL));
 	}
 
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
-
-		return new AxisAlignedBB(
-			$this->x,
-			$this->y,
-			$this->z,
-			$this->x + 1,
-			$this->y + 1 - 0.125,
-			$this->z + 1
-		);
+		return AxisAlignedBB::one()->trim(Facing::UP, 1 / 8);
 	}
 }

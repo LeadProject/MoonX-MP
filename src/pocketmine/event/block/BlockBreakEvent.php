@@ -25,13 +25,16 @@ namespace pocketmine\event\block;
 
 use pocketmine\block\Block;
 use pocketmine\event\Cancellable;
+use pocketmine\event\CancellableTrait;
 use pocketmine\item\Item;
-use pocketmine\Player;
+use pocketmine\player\Player;
 
 /**
  * Called when a player destroys a block somewhere in the world.
  */
 class BlockBreakEvent extends BlockEvent implements Cancellable{
+	use CancellableTrait;
+
 	/** @var Player */
 	protected $player;
 

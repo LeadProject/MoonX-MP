@@ -1,88 +1,66 @@
 <?php
 
 /*
-    _____ _                 _        __  __ _____
-  / ____| |               | |      |  \/  |  __ \
- | |    | | ___  _   _  __| |______| \  / | |__) |
- | |    | |/ _ \| | | |/ _` |______| |\/| |  ___/
- | |____| | (_) | |_| | (_| |      | |  | | |
-  \_____|_|\___/ \__,_|\__,_|      |_|  |_|_|
-
-     Make of Things.
- */
+ *
+ *  ____            _        _   __  __ _                  __  __ ____
+ * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
+ * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
+ * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
+ * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * @author PocketMine Team
+ * @link http://www.pocketmine.net/
+ *
+ *
+*/
 
 declare(strict_types=1);
 
 namespace pocketmine\entity;
 
-use pocketmine\inventory\TradeInventory;
-use pocketmine\inventory\TradeRecipe;
-use pocketmine\entity\Ageable;
-use pocketmine\entity\Effect;
-use pocketmine\entity\EffectInstance;
-use pocketmine\item\Item;
-use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\nbt\tag\ListTag;
-use pocketmine\Player;
-use function array_rand;
-use function count;
-use function mt_rand;
+use pocketmine\network\mcpe\protocol\types\EntityMetadataFlags;
+use pocketmine\network\mcpe\protocol\types\EntityMetadataProperties;
 
-class Villager extends Creature implements NPC, Ageable{
-
-	public const NETWORK_ID = self::VILLAGER_V2;
-
-	/* Profession */
-
-	const UNEMPLOYED = 0;
-	const ARMORER = 1;
-	const BUTCHER = 2;
-	const CARTOGRAPHER = 3;
-	const CLERIC = 4;
-	const FARMER = 5;
-	const FISHERMAN = 6;
-	const FLETCHER = 7;
-	const LEATHERWORKER = 8;
-	const LIBRARIAN = 9;
-	const STONE_MASON‌ = 10;
-	const NITWIT = 11;
-	const SHEPHERD = 12;
-	const TOOLSMITH = 13;
-	const WEAPONSMITH = 14;
-
-
+class Villager extends Living implements Ageable{
 	public const PROFESSION_FARMER = 0;
 	public const PROFESSION_LIBRARIAN = 1;
 	public const PROFESSION_PRIEST = 2;
 	public const PROFESSION_BLACKSMITH = 3;
 	public const PROFESSION_BUTCHER = 4;
 
+	public const NETWORK_ID = self::VILLAGER_V2;
+
 	public $width = 0.6;
 	public $height = 1.8;
-
-	/** @var bool */
-	protected $canTrade;
-	/** @var string */
-	protected $traderName;
-	/** @var ListTag */
-	protected $recipes;
 
 	public function getName() : string{
 		return "Villager";
 	}
 
-	public function initEntity() : void{
-		$this->setMaxHealth(20);
-		$this->propertyManager->setInt(self::DATA_VARIANT, rand(0, 14));
-		parent::initEntity();
+	protected function initEntity(CompoundTag $nbt) : void{
+		parent::initEntity($nbt);
+
+		/** @var int $profession */
+		$profession = $nbt->getInt("Profession", self::PROFESSION_FARMER);
+
+		if($profession > 4 or $profession < 0){
+			$profession = self::PROFESSION_FARMER;
+		}
+
+		$this->setProfession($profession);
 	}
 
-	public function onInteract(Player $player, Item $item, Vector3 $clickPos) : bool{
-		if($this->hasNotTradingPlayer()){
-			$player->addWindow(new TradeInventory($this));
-		}
-		return false;
+	public function saveNBT() : CompoundTag{
+		$nbt = parent::saveNBT();
+		$nbt->setInt("Profession", $this->getProfession());
+
+		return $nbt;
 	}
 
 	/**
@@ -91,87 +69,14 @@ class Villager extends Creature implements NPC, Ageable{
 	 * @param int $profession
 	 */
 	public function setProfession(int $profession) : void{
-		$this->propertyManager->setInt(self::DATA_VARIANT, $profession);
+		$this->propertyManager->setInt(EntityMetadataProperties::VARIANT, $profession);
 	}
 
 	public function getProfession() : int{
-		return $this->propertyManager->getInt(self::DATA_VARIANT);
-	}
-
-	public function setCanTrade(bool $value = true) : void{
-		$this->canTrade = $value;
-	}
-
-	public function canTrade() : bool{
-		return $this->canTrade;
-	}
-
-	public function setTradingPlayer(int $entityRuntimeId = 0) : void{
-		$this->propertyManager->setLong(self::DATA_TRADING_PLAYER_EID, $entityRuntimeId);
-	}
-
-	public function hasNotTradingPlayer() : bool{
-		return $this->propertyManager->getLong(self::DATA_TRADING_PLAYER_EID) === 0;
-	}
-
-	public function setTraderName(string $traderName) : void{
-		$this->traderName = $traderName;
-	}
-
-	public function getTraderName() : string{
-		return $this->traderName;
-	}
-
-	public function getRecipes() : ListTag{
-		return $this->recipes;
-	}
-
-	public function entityBaseTick(int $tickDiff = 25) : bool{
-		$level = $this->getLevel();
-		if($this->closed){
-			return false;
-		}
-		$f = sqrt(($this->motion->x ** 2) + ($this->motion->z ** 2));
-		$yaw = (-atan2($this->motion->x, $this->motion->z) * 180 / M_PI);
-		$pitch = (-atan2($f, $this->motion->y) * 180 / M_PI);
-
-		$this->setRotation($yaw, $pitch);
-		switch(mt_rand(0, 4)){
-			case 0:
-			$this->setMotion(new Vector3(0.1, 0, 0));
-			return true;
-			case 1:
-			$this->jump();
-			return true;
-			case 2:
-			$this->setMotion(new Vector3(0, 0, 0.2));
-			return true;
-			case 3:
-			$this->setMotion(new Vector3(-0.2, 0, 0));
-			return true;
-			case 4:
-			$this->setMotion(new Vector3(0, 0, -0.2));
-			return true;
-			case 5:
-			$this->setMotion(new Vector3(0.2, 0, 0));
-			return true;
-		}
-		return true;
-	}
-
-	public function setRecipes(TradeRecipe ...$recipes) : void{
-		$list = new ListTag(TradeRecipe::TAG_RECIPES);
-		foreach($recipes as $recipe){
-			$list->push($recipe->toNBT());
-		}
-		$this->recipes = $list;
-	}
-
-	public function getXpDropAmount() : int{
-		return 5;
+		return $this->propertyManager->getInt(EntityMetadataProperties::VARIANT);
 	}
 
 	public function isBaby() : bool{
-		return $this->getGenericFlag(self::DATA_FLAG_BABY);
+		return $this->getGenericFlag(EntityMetadataFlags::BABY);
 	}
 }

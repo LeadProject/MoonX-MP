@@ -45,7 +45,6 @@ use pocketmine\command\defaults\PardonCommand;
 use pocketmine\command\defaults\PardonIpCommand;
 use pocketmine\command\defaults\ParticleCommand;
 use pocketmine\command\defaults\PluginsCommand;
-use pocketmine\command\defaults\ReloadCommand;
 use pocketmine\command\defaults\SaveCommand;
 use pocketmine\command\defaults\SaveOffCommand;
 use pocketmine\command\defaults\SaveOnCommand;
@@ -60,14 +59,10 @@ use pocketmine\command\defaults\TellCommand;
 use pocketmine\command\defaults\TimeCommand;
 use pocketmine\command\defaults\TimingsCommand;
 use pocketmine\command\defaults\TitleCommand;
-use pocketmine\command\defaults\PlaySoundCommand;
-use pocketmine\command\defaults\ClearCommand;
-use pocketmine\command\defaults\WorldCommand;
 use pocketmine\command\defaults\TransferServerCommand;
 use pocketmine\command\defaults\VanillaCommand;
 use pocketmine\command\defaults\VersionCommand;
 use pocketmine\command\defaults\WhitelistCommand;
-use pocketmine\command\defaults\StoreCommand;
 use pocketmine\command\utils\InvalidCommandSyntaxException;
 use pocketmine\Server;
 use function array_shift;
@@ -96,7 +91,7 @@ class SimpleCommandMap implements CommandMap{
 		$this->setDefaultCommands();
 	}
 
-	private function setDefaultCommands(){
+	private function setDefaultCommands() : void{
 		$this->registerAll("pocketmine", [
 			new BanCommand("ban"),
 			new BanIpCommand("ban-ip"),
@@ -108,7 +103,6 @@ class SimpleCommandMap implements CommandMap{
 			new EffectCommand("effect"),
 			new EnchantCommand("enchant"),
 			new GamemodeCommand("gamemode"),
-			new GamemodeCommand("gm"),
 			new GarbageCollectorCommand("gc"),
 			new GiveCommand("give"),
 			new HelpCommand("help"),
@@ -121,7 +115,6 @@ class SimpleCommandMap implements CommandMap{
 			new PardonIpCommand("pardon-ip"),
 			new ParticleCommand("particle"),
 			new PluginsCommand("plugins"),
-			new ReloadCommand("reload"),
 			new SaveCommand("save-all"),
 			new SaveOffCommand("save-off"),
 			new SaveOnCommand("save-on"),
@@ -138,17 +131,12 @@ class SimpleCommandMap implements CommandMap{
 			new TitleCommand("title"),
 			new TransferServerCommand("transferserver"),
 			new VersionCommand("version"),
-			new StoreCommand("store"),
-			new ClearCommand("clear"),
-			new PlaySoundCommand("ps"),
-			new PlaySoundCommand("playsound"),
-			new WorldCommand("world"),
 			new WhitelistCommand("whitelist")
 		]);
 	}
 
 
-	public function registerAll(string $fallbackPrefix, array $commands){
+	public function registerAll(string $fallbackPrefix, array $commands) : void{
 		foreach($commands as $command){
 			$this->register($fallbackPrefix, $command);
 		}
@@ -161,7 +149,7 @@ class SimpleCommandMap implements CommandMap{
 	 *
 	 * @return bool
 	 */
-	public function register(string $fallbackPrefix, Command $command, string $label = null) : bool{
+	public function register(string $fallbackPrefix, Command $command, ?string $label = null) : bool{
 		if($label === null){
 			$label = $command->getName();
 		}
@@ -241,7 +229,7 @@ class SimpleCommandMap implements CommandMap{
 	 *
 	 * @return Command|null
 	 */
-	public function matchCommand(string &$commandName, array &$args){
+	public function matchCommand(string &$commandName, array &$args) : ?Command{
 		$count = min(count($args), 255);
 
 		for($i = 0; $i < $count; ++$i){
@@ -287,7 +275,7 @@ class SimpleCommandMap implements CommandMap{
 		return true;
 	}
 
-	public function clearCommands(){
+	public function clearCommands() : void{
 		foreach($this->knownCommands as $command){
 			$command->unregister($this);
 		}
@@ -295,7 +283,7 @@ class SimpleCommandMap implements CommandMap{
 		$this->setDefaultCommands();
 	}
 
-	public function getCommand(string $name){
+	public function getCommand(string $name) : ?Command{
 		return $this->knownCommands[$name] ?? null;
 	}
 
@@ -310,7 +298,7 @@ class SimpleCommandMap implements CommandMap{
 	/**
 	 * @return void
 	 */
-	public function registerServerAliases(){
+	public function registerServerAliases() : void{
 		$values = $this->server->getCommandAliases();
 
 		foreach($values as $alias => $commandStrings){

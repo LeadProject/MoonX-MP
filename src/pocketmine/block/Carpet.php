@@ -23,58 +23,39 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
-use pocketmine\block\utils\ColorBlockMetaHelper;
 use pocketmine\item\Item;
 use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
-use pocketmine\Player;
+use pocketmine\player\Player;
+use pocketmine\world\BlockTransaction;
 
 class Carpet extends Flowable{
 
-	protected $id = self::CARPET;
-
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
-	}
-
-	public function getHardness() : float{
-		return 0.1;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.1));
 	}
 
 	public function isSolid() : bool{
 		return true;
 	}
 
-	public function getName() : string{
-		return ColorBlockMetaHelper::getColorFromMeta($this->meta) . " Carpet";
-	}
-
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
-
-		return new AxisAlignedBB(
-			$this->x,
-			$this->y,
-			$this->z,
-			$this->x + 1,
-			$this->y + 0.0625,
-			$this->z + 1
-		);
+		return AxisAlignedBB::one()->trim(Facing::UP, 15 / 16);
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		$down = $this->getSide(Vector3::SIDE_DOWN);
-		if($down->getId() !== self::AIR){
-			$this->getLevel()->setBlock($blockReplace, $this, true, true);
-
-			return true;
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		$down = $this->getSide(Facing::DOWN);
+		if($down->getId() !== BlockLegacyIds::AIR){
+			return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 		}
 
 		return false;
 	}
 
 	public function onNearbyBlockChange() : void{
-		if($this->getSide(Vector3::SIDE_DOWN)->getId() === self::AIR){
-			$this->getLevel()->useBreakOn($this);
+		if($this->getSide(Facing::DOWN)->getId() === BlockLegacyIds::AIR){
+			$this->getWorld()->useBreakOn($this);
 		}
 	}
 

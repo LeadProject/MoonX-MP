@@ -25,11 +25,12 @@ namespace pocketmine\network\mcpe\protocol;
 
 #include <rules/DataPacket.h>
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\BadPacketException;
+use pocketmine\network\mcpe\handler\PacketHandler;
 use pocketmine\network\mcpe\protocol\types\ScorePacketEntry;
 use function count;
 
-class SetScorePacket extends DataPacket{
+class SetScorePacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::SET_SCORE_PACKET;
 
 	public const TYPE_CHANGE = 0;
@@ -40,11 +41,33 @@ class SetScorePacket extends DataPacket{
 	/** @var ScorePacketEntry[] */
 	public $entries = [];
 
-	protected function decodePayload(){
+	/**
+	 * @param ScorePacketEntry[] $entries
+	 * @return self
+	 */
+	public static function change(array $entries) : self{
+		$result = new self;
+		$result->type = self::TYPE_CHANGE;
+		$result->entries = $entries;
+		return $result;
+	}
+
+	/**
+	 * @param ScorePacketEntry[] $entries
+	 * @return self
+	 */
+	public static function remove(array $entries) : self{
+		$result = new self;
+		$result->type = self::TYPE_REMOVE;
+		$result->entries = $entries;
+		return $result;
+	}
+
+	protected function decodePayload() : void{
 		$this->type = $this->getByte();
 		for($i = 0, $i2 = $this->getUnsignedVarInt(); $i < $i2; ++$i){
 			$entry = new ScorePacketEntry();
-			$entry->scoreboardId = $this->getVarLong();
+			$entry->entryUniqueId = $this->getVarLong();
 			$entry->objectiveName = $this->getString();
 			$entry->score = $this->getLInt();
 			if($this->type !== self::TYPE_REMOVE){
@@ -58,17 +81,18 @@ class SetScorePacket extends DataPacket{
 						$entry->customName = $this->getString();
 						break;
 					default:
-						throw new \UnexpectedValueException("Unknown entry type $entry->type");
+						throw new BadPacketException("Unknown entry type $entry->type");
 				}
 			}
+			$this->entries[] = $entry;
 		}
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putByte($this->type);
 		$this->putUnsignedVarInt(count($this->entries));
 		foreach($this->entries as $entry){
-			$this->putVarLong($entry->scoreboardId);
+			$this->putVarLong($entry->entryUniqueId);
 			$this->putString($entry->objectiveName);
 			$this->putLInt($entry->score);
 			if($this->type !== self::TYPE_REMOVE){
@@ -88,7 +112,7 @@ class SetScorePacket extends DataPacket{
 		}
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleSetScore($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleSetScore($this);
 	}
 }

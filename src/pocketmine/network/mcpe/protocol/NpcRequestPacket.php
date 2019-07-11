@@ -25,9 +25,9 @@ namespace pocketmine\network\mcpe\protocol;
 
 #include <rules/DataPacket.h>
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class NpcRequestPacket extends DataPacket{
+class NpcRequestPacket extends DataPacket implements ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::NPC_REQUEST_PACKET;
 
 	/** @var int */
@@ -39,21 +39,21 @@ class NpcRequestPacket extends DataPacket{
 	/** @var int */
 	public $actionType;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->entityRuntimeId = $this->getEntityRuntimeId();
 		$this->requestType = $this->getByte();
 		$this->commandString = $this->getString();
 		$this->actionType = $this->getByte();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putEntityRuntimeId($this->entityRuntimeId);
 		$this->putByte($this->requestType);
 		$this->putString($this->commandString);
 		$this->putByte($this->actionType);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleNpcRequest($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleNpcRequest($this);
 	}
 }

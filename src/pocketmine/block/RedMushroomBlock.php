@@ -28,22 +28,29 @@ use function mt_rand;
 
 class RedMushroomBlock extends Solid{
 
-	protected $id = Block::RED_MUSHROOM_BLOCK;
+	/**
+	 * @var int
+	 * In PC they have blockstate properties for each of the sides (pores/not pores). Unfortunately, we can't support
+	 * that because we can't serialize 2^6 combinations into a 4-bit metadata value, so this has to stick with storing
+	 * the legacy crap for now.
+	 * TODO: change this once proper blockstates are implemented
+	 */
+	protected $rotationData = 0;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.2, BlockToolType::AXE));
 	}
 
-	public function getName() : string{
-		return "Red Mushroom Block";
+	protected function writeStateToMeta() : int{
+		return $this->rotationData;
 	}
 
-	public function getHardness() : float{
-		return 0.2;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->rotationData = $stateMeta;
 	}
 
-	public function getToolType() : int{
-		return BlockToolType::TYPE_AXE;
+	public function getStateBitmask() : int{
+		return 0b1111;
 	}
 
 	public function getDropsForCompatibleTool(Item $item) : array{

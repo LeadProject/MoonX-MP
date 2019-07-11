@@ -23,31 +23,18 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
-use pocketmine\inventory\CraftingGrid;
+use pocketmine\crafting\CraftingGrid;
 use pocketmine\item\Item;
-use pocketmine\Player;
+use pocketmine\math\Vector3;
+use pocketmine\player\Player;
 
 class CraftingTable extends Solid{
 
-	protected $id = self::CRAFTING_TABLE;
-
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(2.5, BlockToolType::AXE));
 	}
 
-	public function getHardness() : float{
-		return 2.5;
-	}
-
-	public function getName() : string{
-		return "Crafting Table";
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_AXE;
-	}
-
-	public function onActivate(Item $item, Player $player = null) : bool{
+	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($player instanceof Player){
 			$player->setCraftingGrid(new CraftingGrid($player, CraftingGrid::SIZE_BIG));
 		}

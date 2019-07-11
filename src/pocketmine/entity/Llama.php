@@ -2,100 +2,72 @@
 
 /*
  *
- *  _____            _               _____
- * / ____|          (_)             |  __ \
- *| |  __  ___ _ __  _ ___ _   _ ___| |__) | __ ___
- *| | |_ |/ _ \ '_ \| / __| | | / __|  ___/ '__/ _ \
- *| |__| |  __/ | | | \__ \ |_| \__ \ |   | | | (_) |
- * \_____|\___|_| |_|_|___/\__, |___/_|   |_|  \___/
- *                         __/ |
- *                        |___/
+ *  ____            _        _   __  __ _                  __  __ ____
+ * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
+ * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
+ * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
+ * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author GenisysPro
- * @link https://github.com/GenisysPro/GenisysPro
+ * @author PocketMine Team
+ * @link http://www.pocketmine.net/
  *
  *
- */
+*/
+
+declare(strict_types=1);
 
 namespace pocketmine\entity;
 
-use pocketmine\item\Item as ItemItem;
-use pocketmine\network\mcpe\protocol\AddEntityPacket;
-use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\nbt\tag\ListTag;
-use pocketmine\Player;
-use pocketmine\Entity;
+use pocketmine\network\mcpe\protocol\types\EntityMetadataFlags;
+use pocketmine\network\mcpe\protocol\types\EntityMetadataProperties;
+use pocketmine\event\entity\EntityDamageByEntityEvent;
+use pocketmine\event\entity\EntityDamageEvent;
+use pocketmine\item\Item;
+use pocketmine\item\ItemFactory;
+use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\EntityEventPacket;
 
-class Llama extends Animal {
-	const NETWORK_ID = 29;
+class Llama extends Animal{
+	public const NETWORK_ID = self::LLAMA;
 
-	const CREAMY = 0;
-	const WHITE = 1;
-	const BROWN = 2;
-	const GRAY = 3;
+	public $width = 0.6;
+	public $height = 1.8;
 
-	public $width = 0.3;
-	public $length = 0.9;
-	public $height = 0;
-
-	public $dropExp = [1, 3];
-
-	/**
-	 * @return string
-	 */
 	public function getName() : string{
 		return "Llama";
 	}
 
-	public function initEntity() : void{
-		$this->setMaxHealth(30);
-		$this->propertyManager->setInt(self::DATA_VARIANT, rand(0, 3));
-		parent::initEntity();
+	protected function initEntity(CompoundTag $nbt) : void{
+		$this->propertyManager->setInt(EntityMetadataProperties::VARIANT, rand(0, 3));
+		$this->propertyManager->setString("Owner", "");
+		$this->propertyManager->setString("Chest", []);
+		parent::initEntity($nbt);
 	}
 
-	public function entityBaseTick(int $tickDiff = 25) : bool{
-		$level = $this->getLevel();
-		if($this->closed){
-			return false;
+	public function attack(EntityDamageEvent $source) : void{
+		parent::attack($source);
+		if($source->isCancelled()){
+			return;
 		}
-		$this->setRotation(mt_rand(0, 360), mt_rand(0, 360));
-		switch(mt_rand(0, 4)){
-			case 0:
-			$this->setMotion(new Vector3(0.1, 0, 0));
-			return true;
-			case 1:
-			$this->jump();
-			return true;
-			case 2:
-			$this->setMotion(new Vector3(0, 0, 0.2));
-			return true;
-			case 3:
-			$this->setMotion(new Vector3(-0.2, 0, 0));
-			return true;
-			case 4:
-			$this->setMotion(new Vector3(0, 0, -0.2));
-			return true;
-			case 5:
-			$this->setMotion(new Vector3(0.2, 0, 0));
-			return true;
+
+		if($source instanceof EntityDamageByEntityEvent){
+			$this->ride($source->getDamager());
+			$this->broadcastEntityEvent(EntityEventPacket::WITCH_SPELL_PARTICLES);
 		}
-		return true;
 	}
 
-	/**
-	 * @return array
-	 */
-	public function getDrops() : array{
-		$drops = [
-			ItemItem::get(ItemItem::LEATHER, 0, mt_rand(0, 2))
-		];
+	public function saveNBT() : CompoundTag{
+		$nbt = parent::saveNBT();
+		return $nbt;
+	}
 
-		return $drops;
+	public function isBaby() : bool{
+		return $this->getGenericFlag(EntityMetadataFlags::BABY);
 	}
 }

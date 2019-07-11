@@ -38,17 +38,21 @@ class ItemBlock extends Item{
 	 * @param int      $meta usually 0-15 (placed blocks may only have meta values 0-15)
 	 * @param int|null $itemId
 	 */
-	public function __construct(int $blockId, int $meta = 0, int $itemId = null){
+	public function __construct(int $blockId, int $meta = 0, ?int $itemId = null){
+		if($blockId < 0){ //extended blocks
+			if($itemId === null){
+				$itemId = $blockId;
+			}
+			$blockId = 255 - $blockId;
+		}
 		$this->blockId = $blockId;
+		$this->meta = $meta;
+
 		parent::__construct($itemId ?? $blockId, $meta, $this->getBlock()->getName());
 	}
 
 	public function getBlock() : Block{
 		return BlockFactory::get($this->blockId, $this->meta === -1 ? 0 : $this->meta & 0xf);
-	}
-
-	public function getVanillaName() : string{
-		return $this->getBlock()->getName();
 	}
 
 	public function getFuelTime() : int{

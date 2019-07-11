@@ -23,15 +23,11 @@ declare(strict_types=1);
 
 namespace pocketmine\item;
 
-use pocketmine\entity\Effect;
-use pocketmine\entity\EffectInstance;
+use pocketmine\entity\effect\Effect;
+use pocketmine\entity\effect\EffectInstance;
 use function lcg_value;
 
 class RottenFlesh extends Food{
-
-	public function __construct(int $meta = 0){
-		parent::__construct(self::ROTTEN_FLESH, $meta, "Rotten Flesh");
-	}
 
 	public function getFoodRestore() : int{
 		return 4;
@@ -44,7 +40,7 @@ class RottenFlesh extends Food{
 	public function getAdditionalEffects() : array{
 		if(lcg_value() <= 0.8){
 			return [
-				new EffectInstance(Effect::getEffect(Effect::HUNGER), 600)
+				new EffectInstance(Effect::HUNGER(), 600)
 			];
 		}
 

@@ -26,11 +26,12 @@ namespace pocketmine\item;
 
 use pocketmine\block\Block;
 use pocketmine\event\entity\EntityDamageEvent;
+use pocketmine\inventory\ArmorInventory;
 use pocketmine\item\enchantment\Enchantment;
 use pocketmine\item\enchantment\ProtectionEnchantment;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\IntTag;
-use pocketmine\Player;
+use pocketmine\player\Player;
 use pocketmine\utils\Binary;
 use pocketmine\utils\Color;
 use function lcg_value;
@@ -38,18 +39,33 @@ use function mt_rand;
 
 abstract class Armor extends Durable{
 
-	public const SLOT_HELMET = 0;
-	public const SLOT_CHESTPLATE = 1;
-	public const SLOT_LEGGINGS = 2;
-	public const SLOT_BOOTS = 3;
-
 	public const TAG_CUSTOM_COLOR = "customColor"; //TAG_Int
+
+	/** @var ArmorTypeInfo */
+	private $armorInfo;
+
+	public function __construct(int $id, int $variant, string $name, ArmorTypeInfo $info){
+		parent::__construct($id, $variant, $name);
+		$this->armorInfo = $info;
+	}
+
+	public function getMaxDurability() : int{
+		return $this->armorInfo->getMaxDurability();
+	}
+
+	public function getDefensePoints() : int{
+		return $this->armorInfo->getDefensePoints();
+	}
+
+	/**
+	 * @see ArmorInventory
+	 * @return int
+	 */
+	abstract public function getArmorSlot() : int;
 
 	public function getMaxStackSize() : int{
 		return 1;
 	}
-
-	abstract public function getArmorSlot() : int;
 
 	/**
 	 * Returns the dyed colour of this armour piece. This generally only applies to leather armour.
@@ -67,9 +83,12 @@ abstract class Armor extends Durable{
 	 * Sets the dyed colour of this armour piece. This generally only applies to leather armour.
 	 *
 	 * @param Color $color
+	 *
+	 * @return $this
 	 */
-	public function setCustomColor(Color $color) : void{
-		$this->setNamedTagEntry(new IntTag(self::TAG_CUSTOM_COLOR, Binary::signInt($color->toARGB())));
+	public function setCustomColor(Color $color) : self{
+		$this->getNamedTag()->setInt(self::TAG_CUSTOM_COLOR, Binary::signInt($color->toARGB()));
+		return $this;
 	}
 
 	/**
@@ -94,7 +113,7 @@ abstract class Armor extends Durable{
 	}
 
 	protected function getUnbreakingDamageReduction(int $amount) : int{
-		if(($unbreakingLevel = $this->getEnchantmentLevel(Enchantment::UNBREAKING)) > 0){
+		if(($unbreakingLevel = $this->getEnchantmentLevel(Enchantment::UNBREAKING())) > 0){
 			$negated = 0;
 
 			$chance = 1 / ($unbreakingLevel + 1);
@@ -110,14 +129,12 @@ abstract class Armor extends Durable{
 		return 0;
 	}
 
-	public function onClickAir(Player $player, Vector3 $directionVector) : bool{
-		if($player->getArmorInventory()->getItem($this->getArmorSlot())->isNull()){
-			$player->getArmorInventory()->setItem($this->getArmorSlot(), $this);
-
-			$this->pop();
-
-			return true;
+	public function onActivate(Player $player, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector) : ItemUseResult{
+		$existing = $player->getArmorInventory()->getItem($this->getArmorSlot());
+		if(!$existing->isNull()){
+			return ItemUseResult::FAIL();
 		}
-		return false;
+		$player->getArmorInventory()->setItem($this->getArmorSlot(), $this->pop());
+		return ItemUseResult::SUCCESS();
 	}
 }

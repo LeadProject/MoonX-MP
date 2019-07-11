@@ -23,13 +23,18 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol\types;
 
-use pocketmine\inventory\transaction\action\CreativeInventoryAction;
+use pocketmine\inventory\AnvilInventory;
+use pocketmine\inventory\EnchantInventory;
+use pocketmine\inventory\transaction\action\CreateItemAction;
+use pocketmine\inventory\transaction\action\DestroyItemAction;
 use pocketmine\inventory\transaction\action\DropItemAction;
 use pocketmine\inventory\transaction\action\InventoryAction;
 use pocketmine\inventory\transaction\action\SlotChangeAction;
 use pocketmine\item\Item;
-use pocketmine\network\mcpe\protocol\InventoryTransactionPacket;
-use pocketmine\Player;
+use pocketmine\network\BadPacketException;
+use pocketmine\network\mcpe\serializer\NetworkBinaryStream;
+use pocketmine\player\Player;
+use pocketmine\utils\BinaryDataException;
 
 class NetworkInventoryAction{
 	public const SOURCE_CONTAINER = 0;
@@ -92,11 +97,14 @@ class NetworkInventoryAction{
 	public $newItem;
 
 	/**
-	 * @param InventoryTransactionPacket $packet
+	 * @param \pocketmine\network\mcpe\serializer\NetworkBinaryStream $packet
 	 *
 	 * @return $this
+	 *
+	 * @throws BinaryDataException
+	 * @throws BadPacketException
 	 */
-	public function read(InventoryTransactionPacket $packet){
+	public function read(NetworkBinaryStream $packet) : NetworkInventoryAction{
 		$this->sourceType = $packet->getUnsignedVarInt();
 
 		switch($this->sourceType){
@@ -111,17 +119,9 @@ class NetworkInventoryAction{
 			case self::SOURCE_CRAFTING_GRID:
 			case self::SOURCE_TODO:
 				$this->windowId = $packet->getVarInt();
-				switch($this->windowId){
-					/** @noinspection PhpMissingBreakStatementInspection */
-					case self::SOURCE_TYPE_CRAFTING_RESULT:
-						$packet->isFinalCraftingPart = true;
-					case self::SOURCE_TYPE_CRAFTING_USE_INGREDIENT:
-						$packet->isCraftingPart = true;
-						break;
-				}
 				break;
 			default:
-				throw new \UnexpectedValueException("Unknown inventory action source type $this->sourceType");
+				throw new BadPacketException("Unknown inventory action source type $this->sourceType");
 		}
 
 		$this->inventorySlot = $packet->getUnsignedVarInt();
@@ -132,9 +132,11 @@ class NetworkInventoryAction{
 	}
 
 	/**
-	 * @param InventoryTransactionPacket $packet
+	 * @param \pocketmine\network\mcpe\serializer\NetworkBinaryStream $packet
+	 *
+	 * @throws \InvalidArgumentException
 	 */
-	public function write(InventoryTransactionPacket $packet){
+	public function write(NetworkBinaryStream $packet) : void{
 		$packet->putUnsignedVarInt($this->sourceType);
 
 		switch($this->sourceType){
@@ -166,15 +168,15 @@ class NetworkInventoryAction{
 	 *
 	 * @throws \UnexpectedValueException
 	 */
-	public function createInventoryAction(Player $player){
+	public function createInventoryAction(Player $player) : ?InventoryAction{
 		switch($this->sourceType){
 			case self::SOURCE_CONTAINER:
-				$window = $player->getWindow($this->windowId);
+				$window = $player->getNetworkSession()->getInvManager()->getWindow($this->windowId);
 				if($window !== null){
 					return new SlotChangeAction($window, $this->inventorySlot, $this->oldItem, $this->newItem);
 				}
 
-				throw new \UnexpectedValueException("Player " . $player->getName() . " has no open container with window ID $this->windowId");
+				throw new \UnexpectedValueException("No open container with window ID $this->windowId");
 			case self::SOURCE_WORLD:
 				if($this->inventorySlot !== self::ACTION_MAGIC_SLOT_DROP_ITEM){
 					throw new \UnexpectedValueException("Only expecting drop-item world actions from the client!");
@@ -184,17 +186,13 @@ class NetworkInventoryAction{
 			case self::SOURCE_CREATIVE:
 				switch($this->inventorySlot){
 					case self::ACTION_MAGIC_SLOT_CREATIVE_DELETE_ITEM:
-						$type = CreativeInventoryAction::TYPE_DELETE_ITEM;
-						break;
+						return new DestroyItemAction($this->newItem);
 					case self::ACTION_MAGIC_SLOT_CREATIVE_CREATE_ITEM:
-						$type = CreativeInventoryAction::TYPE_CREATE_ITEM;
-						break;
+						return new CreateItemAction($this->oldItem);
 					default:
 						throw new \UnexpectedValueException("Unexpected creative action type $this->inventorySlot");
 
 				}
-
-				return new CreativeInventoryAction($this->oldItem, $this->newItem, $type);
 			case self::SOURCE_CRAFTING_GRID:
 			case self::SOURCE_TODO:
 				//These types need special handling.
@@ -206,12 +204,40 @@ class NetworkInventoryAction{
 					case self::SOURCE_TYPE_CRAFTING_RESULT:
 					case self::SOURCE_TYPE_CRAFTING_USE_INGREDIENT:
 						return null;
+					case self::SOURCE_TYPE_ANVIL_INPUT:
+					case self::SOURCE_TYPE_ANVIL_MATERIAL:
+						$window = $player->getCurrentWindow();
+						if(!($window instanceof AnvilInventory)){
+							throw new \UnexpectedValueException("Current open container is not an anvil");
+						}
+						return new SlotChangeAction($window, $this->inventorySlot, $this->oldItem, $this->newItem);
+					case self::SOURCE_TYPE_ENCHANT_INPUT:
+					case self::SOURCE_TYPE_ENCHANT_MATERIAL:
+						$window = $player->getCurrentWindow();
+						if(!($window instanceof EnchantInventory)){
+							throw new \UnexpectedValueException("Current open container is not an enchanting table");
+						}
+						return new SlotChangeAction($window, $this->inventorySlot, $this->oldItem, $this->newItem);
 				}
 
 				//TODO: more stuff
-				throw new \UnexpectedValueException("Player " . $player->getName() . " has no open container with window ID $this->windowId");
+				throw new \UnexpectedValueException("No open container with window ID $this->windowId");
 			default:
 				throw new \UnexpectedValueException("Unknown inventory source type $this->sourceType");
 		}
+	}
+
+	/**
+	 * Hack to allow identifying crafting transaction parts.
+	 *
+	 * @return bool
+	 */
+	public function isCraftingPart() : bool{
+		return ($this->sourceType === self::SOURCE_TODO or $this->sourceType === self::SOURCE_CRAFTING_GRID) and
+			($this->windowId === self::SOURCE_TYPE_CRAFTING_RESULT or $this->windowId === self::SOURCE_TYPE_CRAFTING_USE_INGREDIENT);
+	}
+
+	public function isFinalCraftingPart() : bool{
+		return $this->isCraftingPart() and $this->windowId === self::SOURCE_TYPE_CRAFTING_RESULT;
 	}
 }

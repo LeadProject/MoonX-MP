@@ -26,9 +26,9 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class DisconnectPacket extends DataPacket{
+class DisconnectPacket extends DataPacket implements ClientboundPacket, ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::DISCONNECT_PACKET;
 
 	/** @var bool */
@@ -36,25 +36,38 @@ class DisconnectPacket extends DataPacket{
 	/** @var string */
 	public $message = "";
 
+	public static function silent() : self{
+		$result = new self;
+		$result->hideDisconnectionScreen = true;
+		return $result;
+	}
+
+	public static function message(string $message) : self{
+		$result = new self;
+		$result->hideDisconnectionScreen = false;
+		$result->message = $message;
+		return $result;
+	}
+
 	public function canBeSentBeforeLogin() : bool{
 		return true;
 	}
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->hideDisconnectionScreen = $this->getBool();
 		if(!$this->hideDisconnectionScreen){
 			$this->message = $this->getString();
 		}
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putBool($this->hideDisconnectionScreen);
 		if(!$this->hideDisconnectionScreen){
 			$this->putString($this->message);
 		}
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleDisconnect($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleDisconnect($this);
 	}
 }

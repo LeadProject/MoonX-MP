@@ -25,14 +25,28 @@ namespace pocketmine\item;
 
 use pocketmine\block\Block;
 use pocketmine\block\BlockFactory;
+use pocketmine\block\BlockLegacyIds;
+use pocketmine\block\utils\DyeColor;
 
 class Bed extends Item{
-	public function __construct(int $meta = 0){
-		parent::__construct(self::BED, $meta, "Bed");
+
+	/** @var DyeColor */
+	private $color;
+
+	public function __construct(int $id, int $variant, string $name, DyeColor $color){
+		parent::__construct($id, $variant, $name);
+		$this->color = $color;
+	}
+
+	/**
+	 * @return DyeColor
+	 */
+	public function getColor() : DyeColor{
+		return $this->color;
 	}
 
 	public function getBlock() : Block{
-		return BlockFactory::get(Block::BED_BLOCK);
+		return BlockFactory::get(BlockLegacyIds::BED_BLOCK);
 	}
 
 	public function getMaxStackSize() : int{

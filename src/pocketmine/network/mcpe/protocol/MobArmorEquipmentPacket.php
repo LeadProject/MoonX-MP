@@ -27,31 +27,52 @@ namespace pocketmine\network\mcpe\protocol;
 
 
 use pocketmine\item\Item;
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class MobArmorEquipmentPacket extends DataPacket{
+class MobArmorEquipmentPacket extends DataPacket implements ClientboundPacket, ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::MOB_ARMOR_EQUIPMENT_PACKET;
 
 	/** @var int */
 	public $entityRuntimeId;
-	/** @var Item[] */
-	public $slots = [];
 
-	protected function decodePayload(){
+	//this intentionally doesn't use an array because we don't want any implicit dependencies on internal order
+
+	/** @var Item */
+	public $head;
+	/** @var Item */
+	public $chest;
+	/** @var Item */
+	public $legs;
+	/** @var Item */
+	public $feet;
+
+	public static function create(int $entityRuntimeId, Item $head, Item $chest, Item $legs, Item $feet) : self{
+		$result = new self;
+		$result->entityRuntimeId = $entityRuntimeId;
+		$result->head = $head;
+		$result->chest = $chest;
+		$result->legs = $legs;
+		$result->feet = $feet;
+		return $result;
+	}
+
+	protected function decodePayload() : void{
 		$this->entityRuntimeId = $this->getEntityRuntimeId();
-		for($i = 0; $i < 4; ++$i){
-			$this->slots[$i] = $this->getSlot();
-		}
+		$this->head = $this->getSlot();
+		$this->chest = $this->getSlot();
+		$this->legs = $this->getSlot();
+		$this->feet = $this->getSlot();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putEntityRuntimeId($this->entityRuntimeId);
-		for($i = 0; $i < 4; ++$i){
-			$this->putSlot($this->slots[$i]);
-		}
+		$this->putSlot($this->head);
+		$this->putSlot($this->chest);
+		$this->putSlot($this->legs);
+		$this->putSlot($this->feet);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleMobArmorEquipment($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleMobArmorEquipment($this);
 	}
 }

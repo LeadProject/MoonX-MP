@@ -26,10 +26,10 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 use function count;
 
-class ResourcePackClientResponsePacket extends DataPacket{
+class ResourcePackClientResponsePacket extends DataPacket implements ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::RESOURCE_PACK_CLIENT_RESPONSE_PACKET;
 
 	public const STATUS_REFUSED = 1;
@@ -42,7 +42,7 @@ class ResourcePackClientResponsePacket extends DataPacket{
 	/** @var string[] */
 	public $packIds = [];
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->status = $this->getByte();
 		$entryCount = $this->getLShort();
 		while($entryCount-- > 0){
@@ -50,7 +50,7 @@ class ResourcePackClientResponsePacket extends DataPacket{
 		}
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putByte($this->status);
 		$this->putLShort(count($this->packIds));
 		foreach($this->packIds as $id){
@@ -58,7 +58,7 @@ class ResourcePackClientResponsePacket extends DataPacket{
 		}
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleResourcePackClientResponse($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleResourcePackClientResponse($this);
 	}
 }

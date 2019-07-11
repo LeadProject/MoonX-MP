@@ -23,9 +23,12 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\InvalidBlockStateException;
 use pocketmine\item\Item;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
-use pocketmine\Player;
+use pocketmine\player\Player;
+use pocketmine\world\BlockTransaction;
 use function array_map;
 use function array_reverse;
 use function array_search;
@@ -36,67 +39,74 @@ use function in_array;
 
 abstract class BaseRail extends Flowable{
 
-	public const STRAIGHT_NORTH_SOUTH = 0;
-	public const STRAIGHT_EAST_WEST = 1;
-	public const ASCENDING_EAST = 2;
-	public const ASCENDING_WEST = 3;
-	public const ASCENDING_NORTH = 4;
-	public const ASCENDING_SOUTH = 5;
-
-	private const ASCENDING_SIDES = [
-		self::ASCENDING_NORTH => Vector3::SIDE_NORTH,
-		self::ASCENDING_EAST => Vector3::SIDE_EAST,
-		self::ASCENDING_SOUTH => Vector3::SIDE_SOUTH,
-		self::ASCENDING_WEST => Vector3::SIDE_WEST
-	];
-
 	protected const FLAG_ASCEND = 1 << 24; //used to indicate direction-up
 
 	protected const CONNECTIONS = [
 		//straights
-		self::STRAIGHT_NORTH_SOUTH => [
-			Vector3::SIDE_NORTH,
-			Vector3::SIDE_SOUTH
+		BlockLegacyMetadata::RAIL_STRAIGHT_NORTH_SOUTH => [
+			Facing::NORTH,
+			Facing::SOUTH
 		],
-		self::STRAIGHT_EAST_WEST => [
-			Vector3::SIDE_EAST,
-			Vector3::SIDE_WEST
+		BlockLegacyMetadata::RAIL_STRAIGHT_EAST_WEST => [
+			Facing::EAST,
+			Facing::WEST
 		],
 
 		//ascending
-		self::ASCENDING_EAST => [
-			Vector3::SIDE_WEST,
-			Vector3::SIDE_EAST | self::FLAG_ASCEND
+		BlockLegacyMetadata::RAIL_ASCENDING_EAST => [
+			Facing::WEST,
+			Facing::EAST | self::FLAG_ASCEND
 		],
-		self::ASCENDING_WEST => [
-			Vector3::SIDE_EAST,
-			Vector3::SIDE_WEST | self::FLAG_ASCEND
+		BlockLegacyMetadata::RAIL_ASCENDING_WEST => [
+			Facing::EAST,
+			Facing::WEST | self::FLAG_ASCEND
 		],
-		self::ASCENDING_NORTH => [
-			Vector3::SIDE_SOUTH,
-			Vector3::SIDE_NORTH | self::FLAG_ASCEND
+		BlockLegacyMetadata::RAIL_ASCENDING_NORTH => [
+			Facing::SOUTH,
+			Facing::NORTH | self::FLAG_ASCEND
 		],
-		self::ASCENDING_SOUTH => [
-			Vector3::SIDE_NORTH,
-			Vector3::SIDE_SOUTH | self::FLAG_ASCEND
+		BlockLegacyMetadata::RAIL_ASCENDING_SOUTH => [
+			Facing::NORTH,
+			Facing::SOUTH | self::FLAG_ASCEND
 		]
 	];
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	/** @var int[] */
+	protected $connections = [];
+
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.7));
 	}
 
-	public function getHardness() : float{
-		return 0.7;
+	protected function writeStateToMeta() : int{
+		if(empty($this->connections)){
+			return BlockLegacyMetadata::RAIL_STRAIGHT_NORTH_SOUTH;
+		}
+		return $this->getMetaForState($this->connections);
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		if(!$blockReplace->getSide(Vector3::SIDE_DOWN)->isTransparent() and $this->getLevel()->setBlock($blockReplace, $this, true, true)){
-			$this->tryReconnect();
-			return true;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$connections = $this->getConnectionsFromMeta($stateMeta);
+		if($connections === null){
+			throw new InvalidBlockStateException("Invalid rail type meta $stateMeta");
+		}
+		$this->connections = $connections;
+	}
+
+	public function getStateBitmask() : int{
+		return 0b1111;
+	}
+
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		if(!$blockReplace->getSide(Facing::DOWN)->isTransparent()){
+			return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 		}
 
 		return false;
+	}
+
+	public function onPostPlace() : void{
+		$this->tryReconnect();
 	}
 
 	protected static function searchState(array $connections, array $lookup) : int{
@@ -127,9 +137,11 @@ abstract class BaseRail extends Flowable{
 	/**
 	 * Returns the connection directions of this rail (depending on the current block state)
 	 *
+	 * @param int $meta
+	 *
 	 * @return int[]
 	 */
-	abstract protected function getConnectionsForState() : array;
+	abstract protected function getConnectionsFromMeta(int $meta) : ?array;
 
 	/**
 	 * Returns all the directions this rail is already connected in.
@@ -141,21 +153,21 @@ abstract class BaseRail extends Flowable{
 		$connections = [];
 
 		/** @var int $connection */
-		foreach($this->getConnectionsForState() as $connection){
+		foreach($this->connections as $connection){
 			$other = $this->getSide($connection & ~self::FLAG_ASCEND);
-			$otherConnection = Vector3::getOppositeSide($connection & ~self::FLAG_ASCEND);
+			$otherConnection = Facing::opposite($connection & ~self::FLAG_ASCEND);
 
 			if(($connection & self::FLAG_ASCEND) !== 0){
-				$other = $other->getSide(Vector3::SIDE_UP);
+				$other = $other->getSide(Facing::UP);
 
 			}elseif(!($other instanceof BaseRail)){ //check for rail sloping up to meet this one
-				$other = $other->getSide(Vector3::SIDE_DOWN);
+				$other = $other->getSide(Facing::DOWN);
 				$otherConnection |= self::FLAG_ASCEND;
 			}
 
 			if(
 				$other instanceof BaseRail and
-				in_array($otherConnection, $other->getConnectionsForState(), true)
+				in_array($otherConnection, $other->connections, true)
 			){
 				$connections[] = $connection;
 			}
@@ -169,10 +181,10 @@ abstract class BaseRail extends Flowable{
 			case 0:
 				//No constraints, can connect in any direction
 				$possible = [
-					Vector3::SIDE_NORTH => true,
-					Vector3::SIDE_SOUTH => true,
-					Vector3::SIDE_WEST => true,
-					Vector3::SIDE_EAST => true
+					Facing::NORTH => true,
+					Facing::SOUTH => true,
+					Facing::WEST => true,
+					Facing::EAST => true
 				];
 				foreach($possible as $p => $_){
 					$possible[$p | self::FLAG_ASCEND] = true;
@@ -189,7 +201,7 @@ abstract class BaseRail extends Flowable{
 	}
 
 	protected function getPossibleConnectionDirectionsOneConstraint(int $constraint) : array{
-		$opposite = Vector3::getOppositeSide($constraint & ~self::FLAG_ASCEND);
+		$opposite = Facing::opposite($constraint & ~self::FLAG_ASCEND);
 
 		$possible = [$opposite => true];
 
@@ -210,15 +222,15 @@ abstract class BaseRail extends Flowable{
 			$continue = false;
 
 			foreach($possible as $thisSide => $_){
-				$otherSide = Vector3::getOppositeSide($thisSide & ~self::FLAG_ASCEND);
+				$otherSide = Facing::opposite($thisSide & ~self::FLAG_ASCEND);
 
 				$other = $this->getSide($thisSide & ~self::FLAG_ASCEND);
 
 				if(($thisSide & self::FLAG_ASCEND) !== 0){
-					$other = $other->getSide(Vector3::SIDE_UP);
+					$other = $other->getSide(Facing::UP);
 
 				}elseif(!($other instanceof BaseRail)){ //check if other rails can slope up to meet this one
-					$other = $other->getSide(Vector3::SIDE_DOWN);
+					$other = $other->getSide(Facing::DOWN);
 					$otherSide |= self::FLAG_ASCEND;
 				}
 
@@ -231,7 +243,8 @@ abstract class BaseRail extends Flowable{
 
 				if(isset($otherPossible[$otherSide])){
 					$otherConnections[] = $otherSide;
-					$other->updateState($otherConnections);
+					$other->setConnections($otherConnections);
+					$other->world->setBlock($other, $other);
 
 					$changed = true;
 					$thisConnections[] = $thisSide;
@@ -243,31 +256,31 @@ abstract class BaseRail extends Flowable{
 		}while($continue);
 
 		if($changed){
-			$this->updateState($thisConnections);
+			$this->setConnections($thisConnections);
+			$this->world->setBlock($this, $this);
 		}
 	}
 
-	private function updateState(array $connections) : void{
+	private function setConnections(array $connections) : void{
 		if(count($connections) === 1){
-			$connections[] = Vector3::getOppositeSide($connections[0] & ~self::FLAG_ASCEND);
+			$connections[] = Facing::opposite($connections[0] & ~self::FLAG_ASCEND);
 		}elseif(count($connections) !== 2){
 			throw new \InvalidArgumentException("Expected exactly 2 connections, got " . count($connections));
 		}
 
-		$this->meta = $this->getMetaForState($connections);
-		$this->level->setBlock($this, $this, false, false); //avoid recursion
+		$this->connections = $connections;
 	}
 
 	public function onNearbyBlockChange() : void{
-		if($this->getSide(Vector3::SIDE_DOWN)->isTransparent() or (
-			isset(self::ASCENDING_SIDES[$this->meta & 0x07]) and
-			$this->getSide(self::ASCENDING_SIDES[$this->meta & 0x07])->isTransparent()
-		)){
-			$this->getLevel()->useBreakOn($this);
+		if($this->getSide(Facing::DOWN)->isTransparent()){
+			$this->world->useBreakOn($this);
+		}else{
+			foreach($this->connections as $connection){
+				if(($connection & self::FLAG_ASCEND) !== 0 and $this->getSide($connection & ~self::FLAG_ASCEND)->isTransparent()){
+					$this->world->useBreakOn($this);
+					break;
+				}
+			}
 		}
-	}
-
-	public function getVariantBitmask() : int{
-		return 0;
 	}
 }

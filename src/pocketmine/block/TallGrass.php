@@ -25,58 +25,39 @@ namespace pocketmine\block;
 
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
-use pocketmine\Player;
+use pocketmine\player\Player;
+use pocketmine\world\BlockTransaction;
 use function mt_rand;
 
 class TallGrass extends Flowable{
 
-	protected $id = self::TALL_GRASS;
-
-	public function __construct(int $meta = 1){
-		$this->meta = $meta;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? BlockBreakInfo::instant(BlockToolType::SHEARS, 1));
 	}
 
 	public function canBeReplaced() : bool{
 		return true;
 	}
 
-	public function getName() : string{
-		static $names = [
-			0 => "Dead Shrub",
-			1 => "Tall Grass",
-			2 => "Fern"
-		];
-		return $names[$this->getVariant()] ?? "Unknown";
-	}
-
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		$down = $this->getSide(Vector3::SIDE_DOWN)->getId();
-		if($down === self::GRASS or $down === self::DIRT){
-			$this->getLevel()->setBlock($blockReplace, $this, true);
-
-			return true;
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		$down = $this->getSide(Facing::DOWN)->getId();
+		if($down === BlockLegacyIds::GRASS or $down === BlockLegacyIds::DIRT){
+			return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 		}
 
 		return false;
 	}
 
 	public function onNearbyBlockChange() : void{
-		if($this->getSide(Vector3::SIDE_DOWN)->isTransparent()){ //Replace with common break method
-			$this->getLevel()->setBlock($this, BlockFactory::get(Block::AIR), true, true);
+		if($this->getSide(Facing::DOWN)->isTransparent()){ //Replace with common break method
+			$this->world->useBreakOn($this);
 		}
 	}
 
-	public function getToolType() : int{
-		return BlockToolType::TYPE_SHEARS;
-	}
-
-	public function getToolHarvestLevel() : int{
-		return 1;
-	}
-
 	public function getDrops(Item $item) : array{
-		if($this->isCompatibleWithTool($item)){
+		if($this->breakInfo->isToolCompatible($item)){
 			return parent::getDrops($item);
 		}
 

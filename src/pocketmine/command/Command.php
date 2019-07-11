@@ -79,7 +79,7 @@ abstract class Command{
 	 * @param string   $usageMessage
 	 * @param string[] $aliases
 	 */
-	public function __construct(string $name, string $description = "", string $usageMessage = null, array $aliases = []){
+	public function __construct(string $name, string $description = "", ?string $usageMessage = null, array $aliases = []){
 		$this->name = $name;
 		$this->setLabel($name);
 		$this->setDescription($description);
@@ -107,7 +107,7 @@ abstract class Command{
 	/**
 	 * @return string|null
 	 */
-	public function getPermission(){
+	public function getPermission() : ?string{
 		return $this->permission;
 	}
 
@@ -115,7 +115,7 @@ abstract class Command{
 	/**
 	 * @param string|null $permission
 	 */
-	public function setPermission(string $permission = null){
+	public function setPermission(?string $permission) : void{
 		$this->permission = $permission;
 	}
 
@@ -260,7 +260,7 @@ abstract class Command{
 	/**
 	 * @param string[] $aliases
 	 */
-	public function setAliases(array $aliases){
+	public function setAliases(array $aliases) : void{
 		$this->aliases = $aliases;
 		if(!$this->isRegistered()){
 			$this->activeAliases = $aliases;
@@ -270,21 +270,21 @@ abstract class Command{
 	/**
 	 * @param string $description
 	 */
-	public function setDescription(string $description){
+	public function setDescription(string $description) : void{
 		$this->description = $description;
 	}
 
 	/**
 	 * @param string $permissionMessage
 	 */
-	public function setPermissionMessage(string $permissionMessage){
+	public function setPermissionMessage(string $permissionMessage) : void{
 		$this->permissionMessage = $permissionMessage;
 	}
 
 	/**
 	 * @param string $usage
 	 */
-	public function setUsage(string $usage){
+	public function setUsage(string $usage) : void{
 		$this->usageMessage = $usage;
 	}
 
@@ -293,12 +293,12 @@ abstract class Command{
 	 * @param TextContainer|string $message
 	 * @param bool                 $sendToSource
 	 */
-	public static function broadcastCommandMessage(CommandSender $source, $message, bool $sendToSource = true){
+	public static function broadcastCommandMessage(CommandSender $source, $message, bool $sendToSource = true) : void{
+		$users = PermissionManager::getInstance()->getPermissionSubscriptions(Server::BROADCAST_CHANNEL_ADMINISTRATIVE);
 		if($message instanceof TextContainer){
 			$m = clone $message;
 			$result = "[" . $source->getName() . ": " . ($source->getServer()->getLanguage()->get($m->getText()) !== $m->getText() ? "%" : "") . $m->getText() . "]";
 
-			$users = PermissionManager::getInstance()->getPermissionSubscriptions(Server::BROADCAST_CHANNEL_ADMINISTRATIVE);
 			$colored = TextFormat::GRAY . TextFormat::ITALIC . $result;
 
 			$m->setText($result);
@@ -306,7 +306,6 @@ abstract class Command{
 			$m->setText($colored);
 			$colored = clone $m;
 		}else{
-			$users = PermissionManager::getInstance()->getPermissionSubscriptions(Server::BROADCAST_CHANNEL_ADMINISTRATIVE);
 			$result = new TranslationContainer("chat.type.admin", [$source->getName(), $message]);
 			$colored = new TranslationContainer(TextFormat::GRAY . TextFormat::ITALIC . "%chat.type.admin", [$source->getName(), $message]);
 		}

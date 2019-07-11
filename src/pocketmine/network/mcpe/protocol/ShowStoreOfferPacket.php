@@ -25,9 +25,9 @@ namespace pocketmine\network\mcpe\protocol;
 
 #include <rules/DataPacket.h>
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class ShowStoreOfferPacket extends DataPacket{
+class ShowStoreOfferPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::SHOW_STORE_OFFER_PACKET;
 
 	/** @var string */
@@ -35,17 +35,17 @@ class ShowStoreOfferPacket extends DataPacket{
 	/** @var bool */
 	public $showAll;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->offerId = $this->getString();
 		$this->showAll = $this->getBool();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putString($this->offerId);
 		$this->putBool($this->showAll);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleShowStoreOffer($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleShowStoreOffer($this);
 	}
 }

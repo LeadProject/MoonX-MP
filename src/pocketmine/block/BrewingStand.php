@@ -23,38 +23,53 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
-use pocketmine\item\TieredTool;
+use pocketmine\block\tile\BrewingStand as TileBrewingStand;
 use pocketmine\item\Item;
+use pocketmine\item\TieredTool;
+use pocketmine\math\Vector3;
+use pocketmine\player\Player;
 
 class BrewingStand extends Transparent{
 
-	protected $id = self::BREWING_STAND_BLOCK;
+	/** @var bool */
+	protected $eastSlot = false;
+	/** @var bool */
+	protected $northwestSlot = false;
+	/** @var bool */
+	protected $southwestSlot = false;
 
-	protected $itemId = Item::BREWING_STAND;
-
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.5, BlockToolType::PICKAXE, TieredTool::TIER_WOODEN));
 	}
 
-	public function getName() : string{
-		return "Brewing Stand";
+	protected function writeStateToMeta() : int{
+		return ($this->eastSlot ? BlockLegacyMetadata::BREWING_STAND_FLAG_EAST : 0) |
+			($this->southwestSlot ? BlockLegacyMetadata::BREWING_STAND_FLAG_SOUTHWEST : 0) |
+			($this->northwestSlot ? BlockLegacyMetadata::BREWING_STAND_FLAG_NORTHWEST : 0);
 	}
 
-	public function getHardness() : float{
-		return 0.5;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->eastSlot = ($stateMeta & BlockLegacyMetadata::BREWING_STAND_FLAG_EAST) !== 0;
+		$this->southwestSlot = ($stateMeta & BlockLegacyMetadata::BREWING_STAND_FLAG_SOUTHWEST) !== 0;
+		$this->northwestSlot = ($stateMeta & BlockLegacyMetadata::BREWING_STAND_FLAG_NORTHWEST) !== 0;
 	}
 
-	public function getToolType() : int{
-		return BlockToolType::TYPE_PICKAXE;
+	public function getStateBitmask() : int{
+		return 0b111;
 	}
 
-	public function getToolHarvestLevel() : int{
-		return TieredTool::TIER_WOODEN;
+	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		if($player instanceof Player){
+			$stand = $this->getWorld()->getTile($this);
+			if($stand instanceof TileBrewingStand and $stand->canOpenWith($item->getCustomName())){
+				$player->setCurrentWindow($stand->getInventory());
+			}
+		}
+
+		return true;
 	}
 
-	public function getVariantBitmask() : int{
-		return 0;
+	public function onScheduledUpdate() : void{
+		//TODO
 	}
-
-	//TODO
 }

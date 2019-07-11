@@ -30,7 +30,7 @@ use pocketmine\entity\Entity;
 class Shovel extends TieredTool{
 
 	public function getBlockToolType() : int{
-		return BlockToolType::TYPE_SHOVEL;
+		return BlockToolType::SHOVEL;
 	}
 
 	public function getBlockToolHarvestLevel() : int{
@@ -42,7 +42,7 @@ class Shovel extends TieredTool{
 	}
 
 	public function onDestroyBlock(Block $block) : bool{
-		if($block->getHardness() > 0){
+		if(!$block->getBreakInfo()->breaksInstantly()){
 			return $this->applyDamage(1);
 		}
 		return false;

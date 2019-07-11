@@ -26,19 +26,19 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class AddPaintingPacket extends DataPacket{
+class AddPaintingPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::ADD_PAINTING_PACKET;
 
 	/** @var string */
 	public $title;
+	/** @var int|null */
+	public $entityUniqueId = null;
 	/** @var int */
 	public $entityRuntimeId;
 	/** @var int */
 	public $x;
-	/** @var int|null */
-	public $entityUniqueId = null;
 	/** @var int */
 	public $y;
 	/** @var int */
@@ -46,7 +46,7 @@ class AddPaintingPacket extends DataPacket{
 	/** @var int */
 	public $direction;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->entityUniqueId = $this->getEntityUniqueId();
 		$this->entityRuntimeId = $this->getEntityRuntimeId();
 		$this->getBlockPosition($this->x, $this->y, $this->z);
@@ -54,7 +54,7 @@ class AddPaintingPacket extends DataPacket{
 		$this->title = $this->getString();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putEntityUniqueId($this->entityUniqueId ?? $this->entityRuntimeId);
 		$this->putEntityRuntimeId($this->entityRuntimeId);
 		$this->putBlockPosition($this->x, $this->y, $this->z);
@@ -62,7 +62,7 @@ class AddPaintingPacket extends DataPacket{
 		$this->putString($this->title);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleAddPainting($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleAddPainting($this);
 	}
 }

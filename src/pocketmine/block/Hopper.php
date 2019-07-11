@@ -1,96 +1,93 @@
 <?php
 
 /*
- *               _ _
- *         /\   | | |
- *        /  \  | | |_ __ _ _   _
- *       / /\ \ | | __/ _` | | | |
- *      / ____ \| | || (_| | |_| |
- *     /_/    \_|_|\__\__,_|\__, |
- *                           __/ |
- *                          |___/
+ *
+ *  ____            _        _   __  __ _                  __  __ ____
+ * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
+ * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
+ * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
+ * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * @author TuranicTeam
- * @link https://github.com/TuranicTeam/Altay
+ * @author PocketMine Team
+ * @link http://www.pocketmine.net/
  *
- */
+ *
+*/
 
 declare(strict_types=1);
 
 namespace pocketmine\block;
 
-use pocketmine\item\TieredTool;
+use pocketmine\block\tile\Hopper as TileHopper;
+use pocketmine\block\utils\BlockDataValidator;
+use pocketmine\block\utils\InvalidBlockStateException;
 use pocketmine\item\Item;
+use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
-use pocketmine\Player;
-use pocketmine\tile\Hopper as TileHopper;
-use pocketmine\tile\Tile;
+use pocketmine\player\Player;
+use pocketmine\world\BlockTransaction;
 
 class Hopper extends Transparent{
 
-	protected $id = self::HOPPER_BLOCK;
-	protected $itemId = Item::HOPPER;
+	/** @var int */
+	private $facing = Facing::DOWN;
+	/** @var bool */
+	private $powered = false;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
-	}
-
-	public function getHardness() : float{
-		return 3;
-	}
-
-	public function getBlastResistance() : float{
-		return 24;
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_PICKAXE;
-	}
-
-	public function getToolHarvestLevel() : int{
-		return TieredTool::TIER_WOODEN;
-	}
-
-	public function getName() : string{
-		return "Hopper";
-	}
-
-	public function onActivate(Item $item, Player $player = null) : bool{
-		if($player instanceof Player){
-			$hopper = $this->getLevel()->getTile($this);
-			if($hopper instanceof TileHopper){
-
-				if(!$hopper->canOpenWith($item->getCustomName())){
-					return true;
-				}
-
-				$player->addWindow($hopper->getInventory());
-			}
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$facing = BlockDataValidator::readFacing($stateMeta & 0x07);
+		if($facing === Facing::UP){
+			throw new InvalidBlockStateException("Hopper may not face upward");
 		}
-
-		return true;
+		$this->facing = $facing;
+		$this->powered = ($stateMeta & BlockLegacyMetadata::HOPPER_FLAG_POWERED) !== 0;
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		static $faces = [
-			0 => Vector3::SIDE_DOWN,
-			1 => Vector3::SIDE_DOWN, // Not used
-			2 => Vector3::SIDE_SOUTH,
-			3 => Vector3::SIDE_NORTH,
-			4 => Vector3::SIDE_EAST,
-			5 => Vector3::SIDE_WEST
+	protected function writeStateToMeta() : int{
+		return $this->facing | ($this->powered ? BlockLegacyMetadata::HOPPER_FLAG_POWERED : 0);
+	}
+
+	public function getStateBitmask() : int{
+		return 0b1111;
+	}
+
+	protected function recalculateCollisionBoxes() : array{
+		$result = [
+			AxisAlignedBB::one()->trim(Facing::UP, 6 / 16) //the empty area around the bottom is currently considered solid
 		];
 
-		$this->meta = $faces[$face];
-		$this->getLevel()->setBlock($this, $this, true, true);
-
-		Tile::createTile(Tile::HOPPER, $this->getLevel(), TileHopper::createNBT($this, $face, $item, $player));
-
-		return true;
+		foreach(Facing::HORIZONTAL as $f){ //add the frame parts around the bowl
+			$result[] = AxisAlignedBB::one()->trim($f, 14 / 16);
+		}
+		return $result;
 	}
+
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		$this->facing = $face === Facing::DOWN ? Facing::DOWN : Facing::opposite($face);
+
+		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+	}
+
+	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		if($player !== null){
+			$tile = $this->world->getTile($this);
+			if($tile instanceof TileHopper){ //TODO: find a way to have inventories open on click without this boilerplate in every block
+				$player->setCurrentWindow($tile->getInventory());
+			}
+			return true;
+		}
+		return false;
+	}
+
+	public function onScheduledUpdate() : void{
+		//TODO
+	}
+
+	//TODO: redstone logic, sucking logic
 }

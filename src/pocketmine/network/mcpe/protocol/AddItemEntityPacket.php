@@ -27,9 +27,9 @@ namespace pocketmine\network\mcpe\protocol;
 
 use pocketmine\item\Item;
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class AddItemEntityPacket extends DataPacket{
+class AddItemEntityPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::ADD_ITEM_ENTITY_PACKET;
 
 	/** @var int|null */
@@ -47,7 +47,7 @@ class AddItemEntityPacket extends DataPacket{
 	/** @var bool */
 	public $isFromFishing = false;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->entityUniqueId = $this->getEntityUniqueId();
 		$this->entityRuntimeId = $this->getEntityRuntimeId();
 		$this->item = $this->getSlot();
@@ -57,7 +57,7 @@ class AddItemEntityPacket extends DataPacket{
 		$this->isFromFishing = $this->getBool();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putEntityUniqueId($this->entityUniqueId ?? $this->entityRuntimeId);
 		$this->putEntityRuntimeId($this->entityRuntimeId);
 		$this->putSlot($this->item);
@@ -67,7 +67,7 @@ class AddItemEntityPacket extends DataPacket{
 		$this->putBool($this->isFromFishing);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleAddItemEntity($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleAddItemEntity($this);
 	}
 }

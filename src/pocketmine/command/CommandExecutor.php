@@ -37,7 +37,3 @@ interface CommandExecutor{
 	public function onCommand(CommandSender $sender, Command $command, string $label, array $args) : bool;
 
 }
-
-/*	public function onCommand(CommandSender $sender, Command $command, string $label, array $args);
-
-}*/

@@ -25,9 +25,9 @@ namespace pocketmine\network\mcpe\protocol;
 
 #include <rules/DataPacket.h>
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class MapCreateLockedCopyPacket extends DataPacket{
+class MapCreateLockedCopyPacket extends DataPacket implements ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::MAP_CREATE_LOCKED_COPY_PACKET;
 
 	/** @var int */
@@ -45,7 +45,7 @@ class MapCreateLockedCopyPacket extends DataPacket{
 		$this->putEntityUniqueId($this->newMapId);
 	}
 
-	public function handle(NetworkSession $handler) : bool{
+	public function handle(PacketHandler $handler) : bool{
 		return $handler->handleMapCreateLockedCopy($this);
 	}
 }

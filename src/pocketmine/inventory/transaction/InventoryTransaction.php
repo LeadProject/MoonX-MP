@@ -28,15 +28,30 @@ use pocketmine\inventory\Inventory;
 use pocketmine\inventory\transaction\action\InventoryAction;
 use pocketmine\inventory\transaction\action\SlotChangeAction;
 use pocketmine\item\Item;
-use pocketmine\Player;
+use pocketmine\player\Player;
+use function array_keys;
 use function assert;
 use function count;
 use function get_class;
 use function min;
+use function shuffle;
 use function spl_object_hash;
+use function spl_object_id;
 
 /**
- * This InventoryTransaction only allows doing Transaction between one / two inventories
+ * This is the basic type for an inventory transaction. This is used for moving items between inventories, dropping
+ * items and more. It allows transactions with multiple inputs and outputs.
+ *
+ * Validation **does not** depend on ordering. This means that the actions can appear in any order and still be valid.
+ * The only validity requirement for this transaction type is that the balance of items must add up to zero. This means:
+ * - No new outputs without matching input amounts
+ * - No inputs without matching output amounts
+ * - No userdata changes (item state, NBT, etc)
+ *
+ * A transaction is composed of "actions", which are pairs of inputs and outputs which target a specific itemstack in
+ * a specific location. There are multiple types of inventory actions which might be involved in a transaction.
+ *
+ * @see InventoryAction
  */
 class InventoryTransaction{
 	protected $hasExecuted = false;
@@ -75,6 +90,11 @@ class InventoryTransaction{
 	}
 
 	/**
+	 * Returns an **unordered** set of actions involved in this transaction.
+	 *
+	 * WARNING: This system is **explicitly designed NOT to care about ordering**. Any order seen in this set has NO
+	 * significance and should not be relied on.
+	 *
 	 * @return InventoryAction[]
 	 */
 	public function getActions() : array{
@@ -85,12 +105,25 @@ class InventoryTransaction{
 	 * @param InventoryAction $action
 	 */
 	public function addAction(InventoryAction $action) : void{
-		if(!isset($this->actions[$hash = spl_object_hash($action)])){
+		if(!isset($this->actions[$hash = spl_object_id($action)])){
 			$this->actions[$hash] = $action;
 			$action->onAddToTransaction($this);
 		}else{
 			throw new \InvalidArgumentException("Tried to add the same action to a transaction twice");
 		}
+	}
+
+	/**
+	 * Shuffles actions in the transaction to prevent external things relying on any implicit ordering.
+	 */
+	private function shuffleActions() : void{
+		$keys = array_keys($this->actions);
+		shuffle($keys);
+		$actions = [];
+		foreach($keys as $key){
+			$actions[$key] = $this->actions[$key];
+		}
+		$this->actions = $actions;
 	}
 
 	/**
@@ -100,7 +133,7 @@ class InventoryTransaction{
 	 * @param Inventory $inventory
 	 */
 	public function addInventory(Inventory $inventory) : void{
-		if(!isset($this->inventories[$hash = spl_object_hash($inventory)])){
+		if(!isset($this->inventories[$hash = spl_object_id($inventory)])){
 			$this->inventories[$hash] = $inventory;
 		}
 	}
@@ -188,7 +221,7 @@ class InventoryTransaction{
 			}
 
 			foreach($list as $action){
-				unset($this->actions[spl_object_hash($action)]);
+				unset($this->actions[spl_object_id($action)]);
 			}
 
 			if(!$targetItem->equalsExact($sourceItem)){
@@ -249,7 +282,7 @@ class InventoryTransaction{
 
 	protected function sendInventories() : void{
 		foreach($this->inventories as $inventory){
-			$inventory->sendContents($this->source);
+			$this->source->getNetworkSession()->getInvManager()->syncContents($inventory);
 		}
 	}
 
@@ -271,6 +304,8 @@ class InventoryTransaction{
 			return false;
 		}
 
+		$this->shuffleActions();
+
 		$this->validate();
 
 		if(!$this->callExecuteEvent()){
@@ -286,11 +321,7 @@ class InventoryTransaction{
 		}
 
 		foreach($this->actions as $action){
-			if($action->execute($this->source)){
-				$action->onExecuteSuccess($this->source);
-			}else{
-				$action->onExecuteFail($this->source);
-			}
+			$action->execute($this->source);
 		}
 
 		$this->hasExecuted = true;

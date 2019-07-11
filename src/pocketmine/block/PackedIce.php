@@ -27,26 +27,12 @@ use pocketmine\item\Item;
 
 class PackedIce extends Solid{
 
-	protected $id = self::PACKED_ICE;
-
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
-	}
-
-	public function getName() : string{
-		return "Packed Ice";
-	}
-
-	public function getHardness() : float{
-		return 0.5;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.5, BlockToolType::PICKAXE));
 	}
 
 	public function getFrictionFactor() : float{
 		return 0.98;
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_PICKAXE;
 	}
 
 	public function getDropsForCompatibleTool(Item $item) : array{

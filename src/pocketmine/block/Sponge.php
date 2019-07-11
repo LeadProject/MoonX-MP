@@ -26,17 +26,22 @@ namespace pocketmine\block;
 
 class Sponge extends Solid{
 
-	protected $id = self::SPONGE;
+	/** @var bool */
+	protected $wet = false;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.6));
 	}
 
-	public function getHardness() : float{
-		return 0.6;
+	protected function writeStateToMeta() : int{
+		return $this->wet ? BlockLegacyMetadata::SPONGE_FLAG_WET : 0;
 	}
 
-	public function getName() : string{
-		return "Sponge";
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->wet = ($stateMeta & BlockLegacyMetadata::SPONGE_FLAG_WET) !== 0;
+	}
+
+	public function getStateBitmask() : int{
+		return 0b1;
 	}
 }

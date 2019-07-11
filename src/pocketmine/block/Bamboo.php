@@ -1,0 +1,99 @@
+<?php
+
+/*
+ *
+ *  ____            _        _   __  __ _                  __  __ ____
+ * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
+ * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
+ * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
+ * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * @author PocketMine Team
+ * @link http://www.pocketmine.net/
+ *
+ *
+*/
+
+declare(strict_types=1);
+
+namespace pocketmine\block;
+
+use pocketmine\block\utils\BlockDataValidator;
+use pocketmine\event\block\BlockGrowEvent;
+use pocketmine\item\Fertilizer;
+use pocketmine\item\Item;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
+use pocketmine\Player;
+
+class Bamboo extends Flowable{
+
+	/** @var int */
+	protected $age = 0;
+
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? BlockBreakInfo::instant());
+	}
+
+	protected function writeStateToMeta() : int{
+		return $this->age;
+	}
+
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->age = BlockDataValidator::readBoundedInt("age", $stateMeta, 0, 15);
+	}
+
+	public function getStateBitmask() : int{
+		return 0b1111;
+	}
+
+	public function onNearbyBlockChange() : void{
+		$down = $this->getSide(Facing::DOWN);
+		if($down->isTransparent() and $down->getId() !== BlockLegacyIds::BAMBOO){
+			$this->getWorld()->useBreakOn($this);
+		}
+	}
+
+	public function ticksRandomly() : bool{
+		return true;
+	}
+
+	public function onRandomTick() : void{
+		if($this->getSide(Facing::DOWN)->getId() !== BlockLegacyIds::BAMBOO){
+			if($this->age === 15){
+				for($y = 1; $y < 10; ++$y){
+					$b = $this->getWorld()->getBlockAt($this->x, $this->y + $y, $this->z);
+					if($b->getId() === BlockLegacyIds::AIR){
+						$this->getWorld()->setBlock($b, BlockFactory::get(BlockLegacyIds::BAMBOO));
+						break;
+					}
+				}
+				$this->age = 0;
+				$this->getWorld()->setBlock($this, $this);
+			}else{
+				++$this->age;
+				$this->getWorld()->setBlock($this, $this);
+			}
+		}
+	}
+
+	/* public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		$down = $this->getSide(Facing::DOWN);
+		if($down->getId() === BlockLegacyIds::BAMBOO){
+			return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+		}elseif($down->getId() === BlockLegacyIds::GRASS or $down->getId() === BlockLegacyIds::DIRT or $down->getId() === BlockLegacyIds::SAND){
+			foreach(Facing::HORIZONTAL as $side){
+				if($down->getSide($side) instanceof Water){
+					return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+				}
+			}
+		}
+
+		return false;
+	} */
+}

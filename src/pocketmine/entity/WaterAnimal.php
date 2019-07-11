@@ -24,11 +24,12 @@ declare(strict_types=1);
 namespace pocketmine\entity;
 
 use pocketmine\event\entity\EntityDamageEvent;
+use pocketmine\network\mcpe\protocol\types\EntityMetadataFlags;
 
-abstract class WaterAnimal extends Creature implements Ageable{
+abstract class WaterAnimal extends Living implements Ageable{
 
 	public function isBaby() : bool{
-		return $this->getGenericFlag(self::DATA_FLAG_BABY);
+		return $this->getGenericFlag(EntityMetadataFlags::BABY);
 	}
 
 	public function canBreathe() : bool{

@@ -26,23 +26,29 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class RemoveEntityPacket extends DataPacket{
+class RemoveEntityPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::REMOVE_ENTITY_PACKET;
 
 	/** @var int */
 	public $entityUniqueId;
 
-	protected function decodePayload(){
+	public static function create(int $entityUniqueId) : self{
+		$result = new self;
+		$result->entityUniqueId = $entityUniqueId;
+		return $result;
+	}
+
+	protected function decodePayload() : void{
 		$this->entityUniqueId = $this->getEntityUniqueId();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putEntityUniqueId($this->entityUniqueId);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleRemoveEntity($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleRemoveEntity($this);
 	}
 }

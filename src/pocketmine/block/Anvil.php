@@ -23,93 +23,61 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
+use pocketmine\block\utils\Fallable;
+use pocketmine\block\utils\FallableTrait;
 use pocketmine\inventory\AnvilInventory;
-use pocketmine\item\TieredTool;
 use pocketmine\item\Item;
+use pocketmine\item\TieredTool;
 use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Bearing;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
-use pocketmine\Player;
+use pocketmine\player\Player;
+use pocketmine\world\BlockTransaction;
 
-class Anvil extends Fallable{
+class Anvil extends Transparent implements Fallable{
+	use FallableTrait;
 
-	public const TYPE_NORMAL = 0;
-	public const TYPE_SLIGHTLY_DAMAGED = 4;
-	public const TYPE_VERY_DAMAGED = 8;
+	/** @var int */
+	protected $facing = Facing::NORTH;
 
-	protected $id = self::ANVIL;
-
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(5.0, BlockToolType::PICKAXE, TieredTool::TIER_WOODEN, 6000.0));
 	}
 
-	public function isTransparent() : bool{
-		return true;
+	protected function writeStateToMeta() : int{
+		return Bearing::fromFacing($this->facing);
 	}
 
-	public function getHardness() : float{
-		return 5;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->facing = BlockDataValidator::readLegacyHorizontalFacing($stateMeta);
 	}
 
-	public function getBlastResistance() : float{
-		return 6000;
+	public function getStateBitmask() : int{
+		return 0b11;
 	}
 
-	public function getVariantBitmask() : int{
-		return 0x0c;
+	protected function recalculateBoundingBox() : ?AxisAlignedBB{
+		return AxisAlignedBB::one()->squash(Facing::axis(Facing::rotateY($this->facing, false)), 1 / 8);
 	}
 
-	public function getName() : string{
-		static $names = [
-			self::TYPE_NORMAL => "Anvil",
-			self::TYPE_SLIGHTLY_DAMAGED => "Slightly Damaged Anvil",
-			self::TYPE_VERY_DAMAGED => "Very Damaged Anvil"
-		];
-		return $names[$this->getVariant()] ?? "Anvil";
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_PICKAXE;
-	}
-
-	public function getToolHarvestLevel() : int{
-		return TieredTool::TIER_WOODEN;
-	}
-
-	public function recalculateBoundingBox() : ?AxisAlignedBB{
-		$inset = 0.125;
-
-		if($this->meta & 0x01){ //east/west
-			return new AxisAlignedBB(
-				$this->x,
-				$this->y,
-				$this->z + $inset,
-				$this->x + 1,
-				$this->y + 1,
-				$this->z + 1 - $inset
-			);
-		}else{
-			return new AxisAlignedBB(
-				$this->x + $inset,
-				$this->y,
-				$this->z,
-				$this->x + 1 - $inset,
-				$this->y + 1,
-				$this->z + 1
-			);
-		}
-	}
-
-	public function onActivate(Item $item, Player $player = null) : bool{
+	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($player instanceof Player){
-			$player->addWindow(new AnvilInventory($this));
+			$player->setCurrentWindow(new AnvilInventory($this));
 		}
 
 		return true;
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		$direction = ($player !== null ? $player->getDirection() : 0) & 0x03;
-		$this->meta = $this->getVariant() | $direction;
-		return $this->getLevel()->setBlock($blockReplace, $this, true, true);
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		if($player !== null){
+			$this->facing = Facing::rotateY($player->getHorizontalFacing(), true);
+		}
+		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+	}
+
+	public function tickFalling() : ?Block{
+		return null;
 	}
 }

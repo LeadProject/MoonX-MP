@@ -23,33 +23,24 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
-use pocketmine\block\utils\ColorBlockMetaHelper;
+use pocketmine\block\utils\Fallable;
+use pocketmine\block\utils\FallableTrait;
+use pocketmine\math\Facing;
 
-class ConcretePowder extends Fallable{
-
-	protected $id = self::CONCRETE_POWDER;
-
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+class ConcretePowder extends Solid implements Fallable{
+	use FallableTrait {
+		onNearbyBlockChange as protected startFalling;
 	}
 
-	public function getName() : string{
-		return ColorBlockMetaHelper::getColorFromMeta($this->meta) . " Concrete Powder";
-	}
-
-	public function getHardness() : float{
-		return 0.5;
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_SHOVEL;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.5, BlockToolType::SHOVEL));
 	}
 
 	public function onNearbyBlockChange() : void{
 		if(($block = $this->checkAdjacentWater()) !== null){
-			$this->level->setBlock($this, $block);
+			$this->world->setBlock($this, $block);
 		}else{
-			parent::onNearbyBlockChange();
+			$this->startFalling();
 		}
 	}
 
@@ -64,9 +55,12 @@ class ConcretePowder extends Fallable{
 	 * @return null|Block
 	 */
 	private function checkAdjacentWater() : ?Block{
-		for($i = 1; $i < 6; ++$i){ //Do not check underneath
+		foreach(Facing::ALL as $i){
+			if($i === Facing::DOWN){
+				continue;
+			}
 			if($this->getSide($i) instanceof Water){
-				return BlockFactory::get(Block::CONCRETE, $this->meta);
+				return BlockFactory::get(BlockLegacyIds::CONCRETE, $this->idInfo->getVariant());
 			}
 		}
 

@@ -23,139 +23,59 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
-use pocketmine\level\sound\DoorSound;
 use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
-use pocketmine\Player;
+use pocketmine\player\Player;
+use pocketmine\world\BlockTransaction;
+use pocketmine\world\sound\DoorSound;
 
 class Trapdoor extends Transparent{
-	public const MASK_UPPER = 0x04;
-	public const MASK_OPENED = 0x08;
-	public const MASK_SIDE = 0x03;
-	public const MASK_SIDE_SOUTH = 2;
-	public const MASK_SIDE_NORTH = 3;
-	public const MASK_SIDE_EAST = 0;
-	public const MASK_SIDE_WEST = 1;
 
-	protected $id = self::TRAPDOOR;
+	/** @var int */
+	protected $facing = Facing::NORTH;
+	/** @var bool */
+	protected $open = false;
+	/** @var bool */
+	protected $top = false;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	protected function writeStateToMeta() : int{
+		return (5 - $this->facing) | ($this->top ? BlockLegacyMetadata::TRAPDOOR_FLAG_UPPER : 0) | ($this->open ? BlockLegacyMetadata::TRAPDOOR_FLAG_OPEN : 0);
 	}
 
-	public function getName() : string{
-		return "Wooden Trapdoor";
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		//TODO: in PC the values are reversed (facing - 2)
+
+		$this->facing = BlockDataValidator::read5MinusHorizontalFacing($stateMeta);
+		$this->top = ($stateMeta & BlockLegacyMetadata::TRAPDOOR_FLAG_UPPER) !== 0;
+		$this->open = ($stateMeta & BlockLegacyMetadata::TRAPDOOR_FLAG_OPEN) !== 0;
 	}
 
-	public function getHardness() : float{
-		return 3;
+	public function getStateBitmask() : int{
+		return 0b1111;
 	}
 
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
-
-		$damage = $this->getDamage();
-
-		$f = 0.1875;
-
-		if(($damage & self::MASK_UPPER) > 0){
-			$bb = new AxisAlignedBB(
-				$this->x,
-				$this->y + 1 - $f,
-				$this->z,
-				$this->x + 1,
-				$this->y + 1,
-				$this->z + 1
-			);
-		}else{
-			$bb = new AxisAlignedBB(
-				$this->x,
-				$this->y,
-				$this->z,
-				$this->x + 1,
-				$this->y + $f,
-				$this->z + 1
-			);
-		}
-
-		if(($damage & self::MASK_OPENED) > 0){
-			if(($damage & 0x03) === self::MASK_SIDE_NORTH){
-				$bb->setBounds(
-					$this->x,
-					$this->y,
-					$this->z + 1 - $f,
-					$this->x + 1,
-					$this->y + 1,
-					$this->z + 1
-				);
-			}elseif(($damage & 0x03) === self::MASK_SIDE_SOUTH){
-				$bb->setBounds(
-					$this->x,
-					$this->y,
-					$this->z,
-					$this->x + 1,
-					$this->y + 1,
-					$this->z + $f
-				);
-			}
-			if(($damage & 0x03) === self::MASK_SIDE_WEST){
-				$bb->setBounds(
-					$this->x + 1 - $f,
-					$this->y,
-					$this->z,
-					$this->x + 1,
-					$this->y + 1,
-					$this->z + 1
-				);
-			}
-			if(($damage & 0x03) === self::MASK_SIDE_EAST){
-				$bb->setBounds(
-					$this->x,
-					$this->y,
-					$this->z,
-					$this->x + $f,
-					$this->y + 1,
-					$this->z + 1
-				);
-			}
-		}
-
-		return $bb;
+		return AxisAlignedBB::one()->trim($this->open ? $this->facing : ($this->top ? Facing::DOWN : Facing::UP), 13 / 16);
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		$directions = [
-			0 => 1,
-			1 => 3,
-			2 => 0,
-			3 => 2
-		];
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($player !== null){
-			$this->meta = $directions[$player->getDirection() & 0x03];
+			$this->facing = Facing::opposite($player->getHorizontalFacing());
 		}
-		if(($clickVector->y > 0.5 and $face !== self::SIDE_UP) or $face === self::SIDE_DOWN){
-			$this->meta |= self::MASK_UPPER; //top half of block
+		if(($clickVector->y > 0.5 and $face !== Facing::UP) or $face === Facing::DOWN){
+			$this->top = true;
 		}
-		$this->getLevel()->setBlock($blockReplace, $this, true, true);
+
+		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+	}
+
+	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		$this->open = !$this->open;
+		$this->world->setBlock($this, $this);
+		$this->world->addSound($this, new DoorSound());
 		return true;
-	}
-
-	public function getVariantBitmask() : int{
-		return 0;
-	}
-
-	public function onActivate(Item $item, Player $player = null) : bool{
-		$this->meta ^= self::MASK_OPENED;
-		$this->getLevel()->setBlock($this, $this, true);
-		$this->level->addSound(new DoorSound($this));
-		return true;
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_AXE;
-	}
-
-	public function getFuelTime() : int{
-		return 300;
 	}
 }

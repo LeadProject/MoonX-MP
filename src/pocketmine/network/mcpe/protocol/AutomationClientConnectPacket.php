@@ -25,23 +25,23 @@ namespace pocketmine\network\mcpe\protocol;
 
 #include <rules/DataPacket.h>
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class AutomationClientConnectPacket extends DataPacket{
+class AutomationClientConnectPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::AUTOMATION_CLIENT_CONNECT_PACKET;
 
 	/** @var string */
 	public $serverUri;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->serverUri = $this->getString();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putString($this->serverUri);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleAutomationClientConnect($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleAutomationClientConnect($this);
 	}
 }

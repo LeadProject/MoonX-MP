@@ -24,28 +24,30 @@ declare(strict_types=1);
 namespace pocketmine\plugin;
 
 use pocketmine\command\Command;
+use pocketmine\command\CommandExecutor;
 use pocketmine\command\CommandSender;
+use pocketmine\command\PluginCommand;
 use pocketmine\command\PluginIdentifiableCommand;
 use pocketmine\scheduler\TaskScheduler;
 use pocketmine\Server;
 use pocketmine\utils\Config;
+use function count;
 use function dirname;
 use function fclose;
 use function file_exists;
 use function fopen;
-use function is_dir;
+use function gettype;
+use function is_array;
+use function is_bool;
+use function is_string;
 use function mkdir;
 use function rtrim;
-use function str_replace;
 use function stream_copy_to_stream;
-use function strlen;
 use function strpos;
 use function strtolower;
-use function substr;
 use function trim;
-use const DIRECTORY_SEPARATOR;
 
-abstract class PluginBase implements Plugin{
+abstract class PluginBase implements Plugin, CommandExecutor{
 
 	/** @var PluginLoader */
 	private $loader;
@@ -74,29 +76,47 @@ abstract class PluginBase implements Plugin{
 	/** @var TaskScheduler */
 	private $scheduler;
 
-	public function __construct(PluginLoader $loader, Server $server, PluginDescription $description, string $dataFolder, string $file){
+	/** @var ResourceProvider */
+	private $resourceProvider;
+
+	public function __construct(PluginLoader $loader, Server $server, PluginDescription $description, string $dataFolder, string $file, ResourceProvider $resourceProvider){
 		$this->loader = $loader;
 		$this->server = $server;
 		$this->description = $description;
 		$this->dataFolder = rtrim($dataFolder, "\\/") . "/";
+		//TODO: this is accessed externally via reflection, not unused
 		$this->file = rtrim($file, "\\/") . "/";
 		$this->configFile = $this->dataFolder . "config.yml";
-		$this->logger = new PluginLogger($this);
-		$this->scheduler = new TaskScheduler($this->logger, $this->getFullName());
+
+		$prefix = $this->getDescription()->getPrefix();
+		$this->logger = new PluginLogger($server->getLogger(), $prefix !== "" ? $prefix : $this->getName());
+		$this->scheduler = new TaskScheduler($this->getFullName());
+		$this->resourceProvider = $resourceProvider;
+
+		$this->onLoad();
+
+		$this->registerYamlCommands();
 	}
 
 	/**
 	 * Called when the plugin is loaded, before calling onEnable()
 	 */
-	public function onLoad(){
+	protected function onLoad()/* : void /* TODO: uncomment this for next major version */{
 
 	}
 
-	public function onEnable(){
+	/**
+	 * Called when the plugin is enabled
+	 */
+	protected function onEnable()/* : void /* TODO: uncomment this for next major version */{
 
 	}
 
-	public function onDisable(){
+	/**
+	 * Called when the plugin is disabled
+	 * Use this to free open things and finish actions
+	 */
+	protected function onDisable()/* : void /* TODO: uncomment this for next major version */{
 
 	}
 
@@ -116,7 +136,7 @@ abstract class PluginBase implements Plugin{
 	 *
 	 * @param bool $enabled
 	 */
-	final public function setEnabled(bool $enabled = true) : void{
+	final public function onEnableStateChange(bool $enabled) : void{
 		if($this->isEnabled !== $enabled){
 			$this->isEnabled = $enabled;
 			if($this->isEnabled){
@@ -150,6 +170,63 @@ abstract class PluginBase implements Plugin{
 	}
 
 	/**
+	 * Registers commands declared in the plugin manifest
+	 */
+	private function registerYamlCommands() : void{
+		$pluginCmds = [];
+
+		foreach($this->getDescription()->getCommands() as $key => $data){
+			if(strpos($key, ":") !== false){
+				$this->logger->error($this->server->getLanguage()->translateString("pocketmine.plugin.commandError", [$key, $this->getDescription()->getFullName()]));
+				continue;
+			}
+			if(is_array($data)){ //TODO: error out if it isn't
+				$newCmd = new PluginCommand($key, $this);
+				if(isset($data["description"])){
+					$newCmd->setDescription($data["description"]);
+				}
+
+				if(isset($data["usage"])){
+					$newCmd->setUsage($data["usage"]);
+				}
+
+				if(isset($data["aliases"]) and is_array($data["aliases"])){
+					$aliasList = [];
+					foreach($data["aliases"] as $alias){
+						if(strpos($alias, ":") !== false){
+							$this->logger->error($this->server->getLanguage()->translateString("pocketmine.plugin.aliasError", [$alias, $this->getDescription()->getFullName()]));
+							continue;
+						}
+						$aliasList[] = $alias;
+					}
+
+					$newCmd->setAliases($aliasList);
+				}
+
+				if(isset($data["permission"])){
+					if(is_bool($data["permission"])){
+						$newCmd->setPermission($data["permission"] ? "true" : "false");
+					}elseif(is_string($data["permission"])){
+						$newCmd->setPermission($data["permission"]);
+					}else{
+						$this->logger->error("Permission must be a string, " . gettype($data["permission"]) . " given for command $key");
+					}
+				}
+
+				if(isset($data["permission-message"])){
+					$newCmd->setPermissionMessage($data["permission-message"]);
+				}
+
+				$pluginCmds[] = $newCmd;
+			}
+		}
+
+		if(count($pluginCmds) > 0){
+			$this->server->getCommandMap()->registerAll($this->getDescription()->getName(), $pluginCmds);
+		}
+	}
+
+	/**
 	 * @param string $name
 	 *
 	 * @return Command|PluginIdentifiableCommand|null
@@ -180,13 +257,6 @@ abstract class PluginBase implements Plugin{
 	}
 
 	/**
-	 * @return bool
-	 */
-	protected function isPhar() : bool{
-		return strpos($this->file, "phar://") === 0;
-	}
-
-	/**
 	 * Gets an embedded resource on the plugin file.
 	 * WARNING: You must close the resource given using fclose()
 	 *
@@ -195,15 +265,12 @@ abstract class PluginBase implements Plugin{
 	 * @return null|resource Resource data, or null
 	 */
 	public function getResource(string $filename){
-		$filename = rtrim(str_replace("\\", "/", $filename), "/");
-		if(file_exists($this->file . "resources/" . $filename)){
-			return fopen($this->file . "resources/" . $filename, "rb");
-		}
-
-		return null;
+		return $this->resourceProvider->getResource($filename);
 	}
 
 	/**
+	 * Saves an embedded resource to its relative location in the data folder
+	 *
 	 * @param string $filename
 	 * @param bool   $replace
 	 *
@@ -239,17 +306,7 @@ abstract class PluginBase implements Plugin{
 	 * @return \SplFileInfo[]
 	 */
 	public function getResources() : array{
-		$resources = [];
-		if(is_dir($this->file . "resources/")){
-			foreach(new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($this->file . "resources/")) as $resource){
-				if($resource->isFile()){
-					$path = str_replace(DIRECTORY_SEPARATOR, "/", substr((string) $resource, strlen($this->file . "resources/")));
-					$resources[$path] = $resource;
-				}
-			}
-		}
-
-		return $resources;
+		return $this->resourceProvider->getResources();
 	}
 
 	/**
@@ -264,9 +321,7 @@ abstract class PluginBase implements Plugin{
 	}
 
 	public function saveConfig(){
-		if(!$this->getConfig()->save()){
-			$this->getLogger()->critical("Could not save config to " . $this->configFile);
-		}
+		$this->getConfig()->save();
 	}
 
 	public function saveDefaultConfig() : bool{
@@ -312,7 +367,7 @@ abstract class PluginBase implements Plugin{
 	/**
 	 * @return PluginLoader
 	 */
-	public function getPluginLoader(){
+	public function getPluginLoader() : PluginLoader{
 		return $this->loader;
 	}
 

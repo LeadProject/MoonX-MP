@@ -24,7 +24,7 @@ declare(strict_types=1);
 namespace pocketmine\updater;
 
 use pocketmine\event\server\UpdateNotifyEvent;
-use pocketmine\Player;
+use pocketmine\player\Player;
 use pocketmine\Server;
 use pocketmine\utils\TextFormat;
 use pocketmine\utils\VersionString;
@@ -46,12 +46,16 @@ class AutoUpdater{
 	/** @var VersionString|null */
 	protected $newVersion;
 
+	/** @var \Logger */
+	private $logger;
+
 	/**
 	 * @param Server $server
 	 * @param string $endpoint
 	 */
 	public function __construct(Server $server, string $endpoint){
 		$this->server = $server;
+		$this->logger = new \PrefixedLogger($server->getLogger(), "Auto Updater");
 		$this->endpoint = "http://$endpoint/api/";
 
 		if($server->getProperty("auto-updater.enabled", true)){
@@ -59,12 +63,16 @@ class AutoUpdater{
 		}
 	}
 
+	public function checkUpdateError(string $error) : void{
+		$this->logger->debug("Async update check failed due to \"$error\"");
+	}
+
 	/**
 	 * Callback used at the end of the update checking task
 	 *
 	 * @param array $updateInfo
 	 */
-	public function checkUpdateCallback(array $updateInfo){
+	public function checkUpdateCallback(array $updateInfo) : void{
 		$this->updateInfo = $updateInfo;
 		$this->checkUpdate();
 		if($this->hasUpdate()){
@@ -93,7 +101,7 @@ class AutoUpdater{
 	/**
 	 * Posts a warning to the console to tell the user there is an update available
 	 */
-	public function showConsoleUpdate(){
+	public function showConsoleUpdate() : void{
 		$messages = [
 			"Your version of " . $this->server->getName() . " is out of date. Version " . $this->newVersion->getFullVersion(true) . " was released on " . date("D M j h:i:s Y", $this->updateInfo["date"])
 		];
@@ -110,34 +118,32 @@ class AutoUpdater{
 	 *
 	 * @param Player $player
 	 */
-	public function showPlayerUpdate(Player $player){
+	public function showPlayerUpdate(Player $player) : void{
 		$player->sendMessage(TextFormat::DARK_PURPLE . "The version of " . $this->server->getName() . " that this server is running is out of date. Please consider updating to the latest version.");
 		$player->sendMessage(TextFormat::DARK_PURPLE . "Check the console for more details.");
 	}
 
-	protected function showChannelSuggestionStable(){
+	protected function showChannelSuggestionStable() : void{
 		$this->printConsoleMessage([
 			"It appears you're running a Stable build, when you've specified that you prefer to run " . ucfirst($this->getChannel()) . " builds.",
 			"If you would like to be kept informed about new Stable builds only, it is recommended that you change 'preferred-channel' in your pocketmine.yml to 'stable'."
 		]);
 	}
 
-	protected function showChannelSuggestionBeta(){
+	protected function showChannelSuggestionBeta() : void{
 		$this->printConsoleMessage([
 			"It appears you're running a Beta build, when you've specified that you prefer to run Stable builds.",
 			"If you would like to be kept informed about new Beta or Development builds, it is recommended that you change 'preferred-channel' in your pocketmine.yml to 'beta' or 'development'."
 		]);
 	}
 
-	protected function printConsoleMessage(array $lines, string $logLevel = \LogLevel::INFO){
-		$logger = $this->server->getLogger();
-
+	protected function printConsoleMessage(array $lines, string $logLevel = \LogLevel::INFO) : void{
 		$title = $this->server->getName() . ' Auto Updater';
-		$logger->log($logLevel, sprintf('----- %s -----', $title));
+		$this->logger->log($logLevel, sprintf('----- %s -----', $title));
 		foreach($lines as $line){
-			$logger->log($logLevel, $line);
+			$this->logger->log($logLevel, $line);
 		}
-		$logger->log($logLevel, sprintf('----- %s -----', str_repeat('-', strlen($title))));
+		$this->logger->log($logLevel, sprintf('----- %s -----', str_repeat('-', strlen($title))));
 	}
 
 	/**
@@ -145,21 +151,21 @@ class AutoUpdater{
 	 *
 	 * @return array|null
 	 */
-	public function getUpdateInfo(){
+	public function getUpdateInfo() : ?array{
 		return $this->updateInfo;
 	}
 
 	/**
 	 * Schedules an AsyncTask to check for an update.
 	 */
-	public function doCheck(){
-		$this->server->getAsyncPool()->submitTask(new UpdateCheckTask($this->endpoint, $this->getChannel()));
+	public function doCheck() : void{
+		$this->server->getAsyncPool()->submitTask(new UpdateCheckTask($this, $this->endpoint, $this->getChannel()));
 	}
 
 	/**
 	 * Checks the update information against the current server version to decide if there's an update
 	 */
-	protected function checkUpdate(){
+	protected function checkUpdate() : void{
 		if($this->updateInfo === null){
 			return;
 		}
@@ -168,7 +174,7 @@ class AutoUpdater{
 			$newVersion = new VersionString($this->updateInfo["base_version"], $this->updateInfo["is_dev"], $this->updateInfo["build"]);
 		}catch(\InvalidArgumentException $e){
 			//Invalid version returned from API, assume there's no update
-			$this->server->getLogger()->debug("[AutoUpdater] Assuming no update because \"" . $e->getMessage() . "\"");
+			$this->logger->debug("Assuming no update because \"" . $e->getMessage() . "\"");
 			return;
 		}
 

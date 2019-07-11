@@ -30,26 +30,8 @@ use pocketmine\item\TieredTool;
 
 class Magma extends Solid{
 
-	protected $id = Block::MAGMA;
-
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
-	}
-
-	public function getName() : string{
-		return "Magma Block";
-	}
-
-	public function getHardness() : float{
-		return 0.5;
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_PICKAXE;
-	}
-
-	public function getToolHarvestLevel() : int{
-		return TieredTool::TIER_WOODEN;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.5, BlockToolType::PICKAXE, TieredTool::TIER_WOODEN));
 	}
 
 	public function getLightLevel() : int{
@@ -60,7 +42,7 @@ class Magma extends Solid{
 		return true;
 	}
 
-	public function onEntityCollideUpon(Entity $entity) : void{
+	public function onEntityInside(Entity $entity) : void{
 		if(!$entity->isSneaking()){
 			$ev = new EntityDamageByBlockEvent($this, $entity, EntityDamageEvent::CAUSE_FIRE, 1);
 			$entity->attack($ev);

@@ -25,30 +25,30 @@ namespace pocketmine\network\mcpe\protocol;
 
 #include <rules/DataPacket.h>
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 use function count;
 
-class PurchaseReceiptPacket extends DataPacket{
+class PurchaseReceiptPacket extends DataPacket implements ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::PURCHASE_RECEIPT_PACKET;
 
 	/** @var string[] */
 	public $entries = [];
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$count = $this->getUnsignedVarInt();
 		for($i = 0; $i < $count; ++$i){
 			$this->entries[] = $this->getString();
 		}
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putUnsignedVarInt(count($this->entries));
 		foreach($this->entries as $entry){
 			$this->putString($entry);
 		}
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handlePurchaseReceipt($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handlePurchaseReceipt($this);
 	}
 }

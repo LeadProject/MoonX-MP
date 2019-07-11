@@ -75,8 +75,6 @@ class Config{
 
 	/** @var string */
 	private $file;
-	/** @var bool */
-	private $correct = false;
 	/** @var int */
 	private $type = Config::DETECT;
 	/** @var int */
@@ -104,23 +102,20 @@ class Config{
 	];
 
 	/**
-	 * @param string $file     Path of the file to be loaded
-	 * @param int    $type     Config type to load, -1 by default (detect)
-	 * @param array  $default  Array with the default values that will be written to the file if it did not exist
-	 * @param null   &$correct Sets correct to true if everything has been loaded correctly
+	 * @param string $file Path of the file to be loaded
+	 * @param int    $type Config type to load, -1 by default (detect)
+	 * @param array  $default Array with the default values that will be written to the file if it did not exist
 	 */
-	public function __construct(string $file, int $type = Config::DETECT, array $default = [], &$correct = null){
+	public function __construct(string $file, int $type = Config::DETECT, array $default = []){
 		$this->load($file, $type, $default);
-		$correct = $this->correct;
 	}
 
 	/**
 	 * Removes all the changes in memory and loads the file again
 	 */
-	public function reload(){
+	public function reload() : void{
 		$this->config = [];
 		$this->nestedCache = [];
-		$this->correct = false;
 		$this->load($this->file, $this->type);
 	}
 
@@ -146,10 +141,10 @@ class Config{
 	 * @param int    $type
 	 * @param array  $default
 	 *
-	 * @return bool
+	 * @throws \InvalidArgumentException if config type could not be auto-detected
+	 * @throws \InvalidStateException if config type is invalid
 	 */
-	public function load(string $file, int $type = Config::DETECT, array $default = []) : bool{
-		$this->correct = true;
+	private function load(string $file, int $type = Config::DETECT, array $default = []) : void{
 		$this->file = $file;
 
 		$this->type = $type;
@@ -159,7 +154,7 @@ class Config{
 			if(isset(Config::$formats[$extension])){
 				$this->type = Config::$formats[$extension];
 			}else{
-				$this->correct = false;
+				throw new \InvalidArgumentException("Cannot detect config type of " . $this->file);
 			}
 		}
 
@@ -167,85 +162,75 @@ class Config{
 			$this->config = $default;
 			$this->save();
 		}else{
-			if($this->correct){
-				$content = file_get_contents($this->file);
-				switch($this->type){
-					case Config::PROPERTIES:
-						$this->parseProperties($content);
-						break;
-					case Config::JSON:
-						$this->config = json_decode($content, true);
-						break;
-					case Config::YAML:
-						$content = self::fixYAMLIndexes($content);
-						$this->config = yaml_parse($content);
-						break;
-					case Config::SERIALIZED:
-						$this->config = unserialize($content);
-						break;
-					case Config::ENUM:
-						$this->parseList($content);
-						break;
-					default:
-						$this->correct = false;
-
-						return false;
-				}
-				if(!is_array($this->config)){
-					$this->config = $default;
-				}
-				if($this->fillDefaults($default, $this->config) > 0){
-					$this->save();
-				}
-			}else{
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-	/**
-	 * @return bool
-	 */
-	public function check() : bool{
-		return $this->correct;
-	}
-
-	/**
-	 * @return bool
-	 */
-	public function save() : bool{
-		if($this->correct){
-			$content = null;
+			$content = file_get_contents($this->file);
 			switch($this->type){
 				case Config::PROPERTIES:
-					$content = $this->writeProperties();
+					$this->parseProperties($content);
 					break;
 				case Config::JSON:
-					$content = json_encode($this->config, $this->jsonOptions);
+					$this->config = json_decode($content, true);
 					break;
 				case Config::YAML:
-					$content = yaml_emit($this->config, YAML_UTF8_ENCODING);
+					$content = self::fixYAMLIndexes($content);
+					$this->config = yaml_parse($content);
 					break;
 				case Config::SERIALIZED:
-					$content = serialize($this->config);
+					$this->config = unserialize($content);
 					break;
 				case Config::ENUM:
-					$content = implode("\r\n", array_keys($this->config));
+					$this->parseList($content);
 					break;
 				default:
-					throw new \InvalidStateException("Config type is unknown, has not been set or not detected");
+					throw new \InvalidStateException("Config type is unknown");
 			}
-
-			file_put_contents($this->file, $content);
-
-			$this->changed = false;
-
-			return true;
-		}else{
-			return false;
+			if(!is_array($this->config)){
+				$this->config = $default;
+			}
+			if($this->fillDefaults($default, $this->config) > 0){
+				$this->save();
+			}
 		}
+	}
+
+	/**
+	 * Returns the path of the config.
+	 *
+	 * @return string
+	 */
+	public function getPath() : string{
+		return $this->file;
+	}
+
+	/**
+	 * Flushes the config to disk in the appropriate format.
+	 *
+	 * @throws \InvalidStateException if config type is not valid
+	 */
+	public function save() : void{
+		$content = null;
+		switch($this->type){
+			case Config::PROPERTIES:
+				$content = $this->writeProperties();
+				break;
+			case Config::JSON:
+				$content = json_encode($this->config, $this->jsonOptions);
+				break;
+			case Config::YAML:
+				$content = yaml_emit($this->config, YAML_UTF8_ENCODING);
+				break;
+			case Config::SERIALIZED:
+				$content = serialize($this->config);
+				break;
+			case Config::ENUM:
+				$content = implode("\r\n", array_keys($this->config));
+				break;
+			default:
+				throw new \InvalidStateException("Config type is unknown, has not been set or not detected");
+		}
+
+		file_put_contents($this->file, $content);
+
+		$this->changed = false;
 	}
 
 	/**
@@ -356,7 +341,7 @@ class Config{
 	 * @param string $key
 	 * @param mixed  $value
 	 */
-	public function setNested($key, $value){
+	public function setNested($key, $value) : void{
 		$vars = explode(".", $key);
 		$base = array_shift($vars);
 
@@ -438,14 +423,14 @@ class Config{
 	 * @return bool|mixed
 	 */
 	public function get($k, $default = false){
-		return ($this->correct and isset($this->config[$k])) ? $this->config[$k] : $default;
+		return $this->config[$k] ?? $default;
 	}
 
 	/**
 	 * @param string $k key to be set
 	 * @param mixed  $v value to set key
 	 */
-	public function set($k, $v = true){
+	public function set($k, $v = true) : void{
 		$this->config[$k] = $v;
 		$this->changed = true;
 		foreach($this->nestedCache as $nestedKey => $nvalue){
@@ -458,7 +443,7 @@ class Config{
 	/**
 	 * @param array $v
 	 */
-	public function setAll(array $v){
+	public function setAll(array $v) : void{
 		$this->config = $v;
 		$this->changed = true;
 	}
@@ -482,7 +467,7 @@ class Config{
 	/**
 	 * @param string $k
 	 */
-	public function remove($k){
+	public function remove($k) : void{
 		unset($this->config[$k]);
 		$this->changed = true;
 	}
@@ -499,7 +484,7 @@ class Config{
 	/**
 	 * @param array $defaults
 	 */
-	public function setDefaults(array $defaults){
+	public function setDefaults(array $defaults) : void{
 		$this->fillDefaults($defaults, $this->config);
 	}
 
@@ -533,7 +518,7 @@ class Config{
 	/**
 	 * @param string $content
 	 */
-	private function parseList(string $content){
+	private function parseList(string $content) : void{
 		foreach(explode("\n", trim(str_replace("\r\n", "\n", $content))) as $v){
 			$v = trim($v);
 			if($v == ""){
@@ -563,7 +548,7 @@ class Config{
 	/**
 	 * @param string $content
 	 */
-	private function parseProperties(string $content){
+	private function parseProperties(string $content) : void{
 		if(preg_match_all('/^\s*([a-zA-Z0-9\-_\.]+)[ \t]*=([^\r\n]*)/um', $content, $matches) > 0){ //false or 0 matches
 			foreach($matches[1] as $i => $k){
 				$v = trim($matches[2][$i]);
@@ -580,7 +565,7 @@ class Config{
 						break;
 				}
 				if(isset($this->config[$k])){
-					MainLogger::getLogger()->debug("[Config] Repeated property " . $k . " on file " . $this->file);
+					\GlobalLogger::get()->debug("[Config] Repeated property " . $k . " on file " . $this->file);
 				}
 				$this->config[$k] = $v;
 			}

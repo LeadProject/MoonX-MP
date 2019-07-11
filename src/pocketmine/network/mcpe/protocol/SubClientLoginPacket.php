@@ -25,23 +25,23 @@ namespace pocketmine\network\mcpe\protocol;
 
 #include <rules/DataPacket.h>
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class SubClientLoginPacket extends DataPacket{
+class SubClientLoginPacket extends DataPacket implements ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::SUB_CLIENT_LOGIN_PACKET;
 
 	/** @var string */
 	public $connectionRequestData;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->connectionRequestData = $this->getString();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putString($this->connectionRequestData);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleSubClientLogin($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleSubClientLogin($this);
 	}
 }

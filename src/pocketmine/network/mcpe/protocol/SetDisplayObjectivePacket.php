@@ -25,9 +25,9 @@ namespace pocketmine\network\mcpe\protocol;
 
 #include <rules/DataPacket.h>
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class SetDisplayObjectivePacket extends DataPacket{
+class SetDisplayObjectivePacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::SET_DISPLAY_OBJECTIVE_PACKET;
 
 	/** @var string */
@@ -41,7 +41,17 @@ class SetDisplayObjectivePacket extends DataPacket{
 	/** @var int */
 	public $sortOrder;
 
-	protected function decodePayload(){
+	public static function create(string $displaySlot, string $objectiveName, string $displayName, string $criteriaName, int $sortOrder) : self{
+		$result = new self;
+		$result->displaySlot = $displaySlot;
+		$result->objectiveName = $objectiveName;
+		$result->displayName = $displayName;
+		$result->criteriaName = $criteriaName;
+		$result->sortOrder = $sortOrder;
+		return $result;
+	}
+
+	protected function decodePayload() : void{
 		$this->displaySlot = $this->getString();
 		$this->objectiveName = $this->getString();
 		$this->displayName = $this->getString();
@@ -49,7 +59,7 @@ class SetDisplayObjectivePacket extends DataPacket{
 		$this->sortOrder = $this->getVarInt();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putString($this->displaySlot);
 		$this->putString($this->objectiveName);
 		$this->putString($this->displayName);
@@ -57,7 +67,7 @@ class SetDisplayObjectivePacket extends DataPacket{
 		$this->putVarInt($this->sortOrder);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleSetDisplayObjective($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleSetDisplayObjective($this);
 	}
 }

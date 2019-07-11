@@ -25,35 +25,9 @@ namespace pocketmine\block;
 
 use pocketmine\item\TieredTool;
 
-class WeightedPressurePlateLight extends Transparent{
+class WeightedPressurePlateLight extends WeightedPressurePlate{
 
-	protected $id = self::LIGHT_WEIGHTED_PRESSURE_PLATE;
-
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
-	}
-
-	public function getName() : string{
-		return "Weighted Pressure Plate Light";
-	}
-
-	public function isSolid() : bool{
-		return false;
-	}
-
-	public function getHardness() : float{
-		return 0.5;
-	}
-
-	public function getVariantBitmask() : int{
-		return 0;
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_PICKAXE;
-	}
-
-	public function getToolHarvestLevel() : int{
-		return TieredTool::TIER_WOODEN;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.5, BlockToolType::PICKAXE, TieredTool::TIER_WOODEN));
 	}
 }

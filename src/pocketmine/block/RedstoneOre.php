@@ -23,48 +23,74 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
-use pocketmine\item\TieredTool;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
+use pocketmine\item\TieredTool;
 use pocketmine\math\Vector3;
-use pocketmine\Player;
+use pocketmine\player\Player;
 use function mt_rand;
 
 class RedstoneOre extends Solid{
+	/** @var BlockIdentifierFlattened */
+	protected $idInfo;
 
-	protected $id = self::REDSTONE_ORE;
+	/** @var bool */
+	protected $lit = false;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(BlockIdentifierFlattened $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(3.0, BlockToolType::PICKAXE, TieredTool::TIER_IRON));
 	}
 
-	public function getName() : string{
-		return "Redstone Ore";
+	public function getId() : int{
+		return $this->lit ? $this->idInfo->getSecondId() : parent::getId();
 	}
 
-	public function getHardness() : float{
-		return 3;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->lit = $id === $this->idInfo->getSecondId();
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		return $this->getLevel()->setBlock($this, $this, true, false);
+	public function isLit() : bool{
+		return $this->lit;
 	}
 
-	public function onActivate(Item $item, Player $player = null) : bool{
-		$this->getLevel()->setBlock($this, BlockFactory::get(Block::GLOWING_REDSTONE_ORE, $this->meta));
-		return false; //this shouldn't prevent block placement
+	/**
+	 * @param bool $lit
+	 *
+	 * @return $this
+	 */
+	public function setLit(bool $lit = true) : self{
+		$this->lit = $lit;
+		return $this;
+	}
+
+	public function getLightLevel() : int{
+		return $this->lit ? 9 : 0;
+	}
+
+	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		if(!$this->lit){
+			$this->lit = true;
+			$this->getWorld()->setBlock($this, $this); //no return here - this shouldn't prevent block placement
+		}
+		return false;
 	}
 
 	public function onNearbyBlockChange() : void{
-		$this->getLevel()->setBlock($this, BlockFactory::get(Block::GLOWING_REDSTONE_ORE, $this->meta));
+		if(!$this->lit){
+			$this->lit = true;
+			$this->getWorld()->setBlock($this, $this);
+		}
 	}
 
-	public function getToolType() : int{
-		return BlockToolType::TYPE_PICKAXE;
+	public function ticksRandomly() : bool{
+		return true;
 	}
 
-	public function getToolHarvestLevel() : int{
-		return TieredTool::TIER_IRON;
+	public function onRandomTick() : void{
+		if($this->lit){
+			$this->lit = false;
+			$this->world->setBlock($this, $this);
+		}
 	}
 
 	public function getDropsForCompatibleTool(Item $item) : array{

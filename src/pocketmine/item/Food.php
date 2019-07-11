@@ -34,14 +34,14 @@ abstract class Food extends Item implements FoodSource{
 	 * @return Item
 	 */
 	public function getResidue(){
-		return ItemFactory::get(Item::AIR, 0, 0);
+		return ItemFactory::air();
 	}
 
 	public function getAdditionalEffects() : array{
 		return [];
 	}
 
-	public function onConsume(Living $consumer){
+	public function onConsume(Living $consumer) : void{
 
 	}
 }

@@ -27,12 +27,12 @@ namespace pocketmine\network\mcpe\protocol;
 
 use pocketmine\item\Item;
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 use pocketmine\network\mcpe\protocol\types\EntityLink;
 use pocketmine\utils\UUID;
 use function count;
 
-class AddPlayerPacket extends DataPacket{
+class AddPlayerPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::ADD_PLAYER_PACKET;
 
 	/** @var UUID */
@@ -75,7 +75,7 @@ class AddPlayerPacket extends DataPacket{
 	/** @var string */
 	public $deviceId = ""; //TODO: fill player's device ID (???)
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->uuid = $this->getUUID();
 		$this->username = $this->getString();
 		$this->entityUniqueId = $this->getEntityUniqueId();
@@ -105,7 +105,7 @@ class AddPlayerPacket extends DataPacket{
 		$this->deviceId = $this->getString();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putUUID($this->uuid);
 		$this->putString($this->username);
 		$this->putEntityUniqueId($this->entityUniqueId ?? $this->entityRuntimeId);
@@ -135,7 +135,7 @@ class AddPlayerPacket extends DataPacket{
 		$this->putString($this->deviceId);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleAddPlayer($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleAddPlayer($this);
 	}
 }

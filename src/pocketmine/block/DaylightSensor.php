@@ -23,28 +23,91 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
+use pocketmine\item\Item;
+use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
+use pocketmine\player\Player;
+use function cos;
+use function max;
+use function round;
+use const M_PI;
+
 class DaylightSensor extends Transparent{
+	/** @var BlockIdentifierFlattened */
+	protected $idInfo;
 
-	protected $id = self::DAYLIGHT_SENSOR;
+	/** @var int */
+	protected $power = 0;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	/** @var bool */
+	protected $inverted = false;
+
+	public function __construct(BlockIdentifierFlattened $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.2, BlockToolType::AXE));
 	}
 
-	public function getName() : string{
-		return "Daylight Sensor";
+	public function getId() : int{
+		return $this->inverted ? $this->idInfo->getSecondId() : parent::getId();
 	}
 
-	public function getHardness() : float{
-		return 0.2;
+	protected function writeStateToMeta() : int{
+		return $this->power;
+	}
+
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->power = BlockDataValidator::readBoundedInt("power", $stateMeta, 0, 15);
+		$this->inverted = $id === $this->idInfo->getSecondId();
+	}
+
+	public function getStateBitmask() : int{
+		return 0b1111;
+	}
+
+	public function isInverted() : bool{
+		return $this->inverted;
+	}
+
+	/**
+	 * @param bool $inverted
+	 *
+	 * @return $this
+	 */
+	public function setInverted(bool $inverted = true) : self{
+		$this->inverted = $inverted;
+		return $this;
 	}
 
 	public function getFuelTime() : int{
 		return 300;
 	}
 
-	public function getToolType() : int{
-		return BlockToolType::TYPE_AXE;
+	protected function recalculateBoundingBox() : ?AxisAlignedBB{
+		return AxisAlignedBB::one()->trim(Facing::UP, 0.5);
+	}
+
+	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		$this->inverted = !$this->inverted;
+		$this->power = $this->recalculatePower();
+		$this->world->setBlock($this, $this);
+		return true;
+	}
+
+	public function onScheduledUpdate() : void{
+		$this->power = $this->recalculatePower();
+		$this->world->setBlock($this, $this);
+		$this->world->scheduleDelayedBlockUpdate($this, 20);
+	}
+
+	private function recalculatePower() : int{
+		$lightLevel = $this->world->getRealBlockSkyLightAt($this->x, $this->y, $this->z);
+		if($this->inverted){
+			return 15 - $lightLevel;
+		}
+
+		$sunAngle = $this->world->getSunAnglePercentage();
+		return max(0, (int) round(15 * cos(($sunAngle + ((($sunAngle < 0.5 ? 0 : 1) - $sunAngle) / 5)) * 2 * M_PI)));
 	}
 
 	//TODO

@@ -27,9 +27,9 @@ namespace pocketmine\network\mcpe\protocol;
 
 
 use pocketmine\item\Item;
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class MobEquipmentPacket extends DataPacket{
+class MobEquipmentPacket extends DataPacket implements ClientboundPacket, ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::MOB_EQUIPMENT_PACKET;
 
 	/** @var int */
@@ -43,7 +43,17 @@ class MobEquipmentPacket extends DataPacket{
 	/** @var int */
 	public $windowId = 0;
 
-	protected function decodePayload(){
+	public static function create(int $entityRuntimeId, Item $item, int $inventorySlot, int $windowId) : self{
+		$result = new self;
+		$result->entityRuntimeId = $entityRuntimeId;
+		$result->item = $item;
+		$result->inventorySlot = $inventorySlot;
+		$result->hotbarSlot = $inventorySlot;
+		$result->windowId = $windowId;
+		return $result;
+	}
+
+	protected function decodePayload() : void{
 		$this->entityRuntimeId = $this->getEntityRuntimeId();
 		$this->item = $this->getSlot();
 		$this->inventorySlot = $this->getByte();
@@ -51,7 +61,7 @@ class MobEquipmentPacket extends DataPacket{
 		$this->windowId = $this->getByte();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putEntityRuntimeId($this->entityRuntimeId);
 		$this->putSlot($this->item);
 		$this->putByte($this->inventorySlot);
@@ -59,7 +69,7 @@ class MobEquipmentPacket extends DataPacket{
 		$this->putByte($this->windowId);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleMobEquipment($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleMobEquipment($this);
 	}
 }

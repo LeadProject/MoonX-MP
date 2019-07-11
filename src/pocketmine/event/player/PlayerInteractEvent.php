@@ -24,23 +24,20 @@ declare(strict_types=1);
 namespace pocketmine\event\player;
 
 use pocketmine\block\Block;
-use pocketmine\block\BlockFactory;
 use pocketmine\event\Cancellable;
+use pocketmine\event\CancellableTrait;
 use pocketmine\item\Item;
-use pocketmine\level\Position;
 use pocketmine\math\Vector3;
-use pocketmine\Player;
-use function assert;
+use pocketmine\player\Player;
 
 /**
  * Called when a player interacts or touches a block (including air?)
  */
 class PlayerInteractEvent extends PlayerEvent implements Cancellable{
+	use CancellableTrait;
+
 	public const LEFT_CLICK_BLOCK = 0;
 	public const RIGHT_CLICK_BLOCK = 1;
-	public const LEFT_CLICK_AIR = 2;
-	public const RIGHT_CLICK_AIR = 3;
-	public const PHYSICAL = 4;
 
 	/** @var Block */
 	protected $blockTouched;
@@ -60,16 +57,15 @@ class PlayerInteractEvent extends PlayerEvent implements Cancellable{
 	/**
 	 * @param Player       $player
 	 * @param Item         $item
-	 * @param Block|null   $block
+	 * @param Block        $block
 	 * @param Vector3|null $touchVector
 	 * @param int          $face
 	 * @param int          $action
 	 */
-	public function __construct(Player $player, Item $item, ?Block $block, ?Vector3 $touchVector, int $face, int $action = PlayerInteractEvent::RIGHT_CLICK_BLOCK){
-		assert($block !== null or $touchVector !== null);
+	public function __construct(Player $player, Item $item, Block $block, ?Vector3 $touchVector, int $face, int $action = PlayerInteractEvent::RIGHT_CLICK_BLOCK){
 		$this->player = $player;
 		$this->item = $item;
-		$this->blockTouched = $block ?? BlockFactory::get(0, 0, new Position(0, 0, 0, $player->level));
+		$this->blockTouched = $block;
 		$this->touchVector = $touchVector ?? new Vector3(0, 0, 0);
 		$this->blockFace = $face;
 		$this->action = $action;

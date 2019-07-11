@@ -26,9 +26,9 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class InteractPacket extends DataPacket{
+class InteractPacket extends DataPacket implements ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::INTERACT_PACKET;
 
 	public const ACTION_LEAVE_VEHICLE = 3;
@@ -48,7 +48,7 @@ class InteractPacket extends DataPacket{
 	/** @var float */
 	public $z;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->action = $this->getByte();
 		$this->target = $this->getEntityRuntimeId();
 
@@ -60,7 +60,7 @@ class InteractPacket extends DataPacket{
 		}
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putByte($this->action);
 		$this->putEntityRuntimeId($this->target);
 
@@ -71,7 +71,7 @@ class InteractPacket extends DataPacket{
 		}
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleInteract($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleInteract($this);
 	}
 }

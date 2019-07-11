@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace pocketmine\entity\projectile;
 
 use pocketmine\block\Block;
+use pocketmine\block\BlockFactory;
 use pocketmine\entity\Entity;
 use pocketmine\entity\Living;
 use pocketmine\event\entity\EntityCombustByEntityEvent;
@@ -33,7 +34,6 @@ use pocketmine\event\entity\EntityDamageEvent;
 use pocketmine\event\entity\ProjectileHitBlockEvent;
 use pocketmine\event\entity\ProjectileHitEntityEvent;
 use pocketmine\event\entity\ProjectileHitEvent;
-use pocketmine\level\Level;
 use pocketmine\math\RayTraceResult;
 use pocketmine\math\Vector3;
 use pocketmine\math\VoxelRayTrace;
@@ -41,6 +41,8 @@ use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\timings\Timings;
+use pocketmine\world\Position;
+use pocketmine\world\World;
 use function assert;
 use function atan2;
 use function ceil;
@@ -53,15 +55,11 @@ abstract class Projectile extends Entity{
 	/** @var float */
 	protected $damage = 0.0;
 
-	/** @var Vector3|null */
+	/** @var Block|null */
 	protected $blockHit;
-	/** @var int|null */
-	protected $blockHitId;
-	/** @var int|null */
-	protected $blockHitData;
 
-	public function __construct(Level $level, CompoundTag $nbt, ?Entity $shootingEntity = null){
-		parent::__construct($level, $nbt);
+	public function __construct(World $world, CompoundTag $nbt, ?Entity $shootingEntity = null){
+		parent::__construct($world, $nbt);
 		if($shootingEntity !== null){
 			$this->setOwningEntity($shootingEntity);
 		}
@@ -73,39 +71,37 @@ abstract class Projectile extends Entity{
 		}
 	}
 
-	protected function initEntity() : void{
-		parent::initEntity();
+	protected function initEntity(CompoundTag $nbt) : void{
+		parent::initEntity($nbt);
 
 		$this->setMaxHealth(1);
 		$this->setHealth(1);
-		$this->damage = $this->namedtag->getDouble("damage", $this->damage);
+		$this->damage = $nbt->getDouble("damage", $this->damage);
 
 		do{
-			$blockHit = null;
+			$blockPos = null;
 			$blockId = null;
 			$blockData = null;
 
-			if($this->namedtag->hasTag("tileX", IntTag::class) and $this->namedtag->hasTag("tileY", IntTag::class) and $this->namedtag->hasTag("tileZ", IntTag::class)){
-				$blockHit = new Vector3($this->namedtag->getInt("tileX"), $this->namedtag->getInt("tileY"), $this->namedtag->getInt("tileZ"));
+			if($nbt->hasTag("tileX", IntTag::class) and $nbt->hasTag("tileY", IntTag::class) and $nbt->hasTag("tileZ", IntTag::class)){
+				$blockPos = new Position($nbt->getInt("tileX"), $nbt->getInt("tileY"), $nbt->getInt("tileZ"), $this->world);
 			}else{
 				break;
 			}
 
-			if($this->namedtag->hasTag("blockId", IntTag::class)){
-				$blockId = $this->namedtag->getInt("blockId");
+			if($nbt->hasTag("blockId", IntTag::class)){
+				$blockId = $nbt->getInt("blockId");
 			}else{
 				break;
 			}
 
-			if($this->namedtag->hasTag("blockData", ByteTag::class)){
-				$blockData = $this->namedtag->getByte("blockData");
+			if($nbt->hasTag("blockData", ByteTag::class)){
+				$blockData = $nbt->getByte("blockData");
 			}else{
 				break;
 			}
 
-			$this->blockHit = $blockHit;
-			$this->blockHitId = $blockId;
-			$this->blockHitData = $blockData;
+			$this->blockHit = BlockFactory::get($blockId, $blockData, $blockPos);
 		}while(false);
 	}
 
@@ -144,20 +140,22 @@ abstract class Projectile extends Entity{
 		return (int) ceil($this->motion->length() * $this->damage);
 	}
 
-	public function saveNBT() : void{
-		parent::saveNBT();
+	public function saveNBT() : CompoundTag{
+		$nbt = parent::saveNBT();
 
-		$this->namedtag->setDouble("damage", $this->damage);
+		$nbt->setDouble("damage", $this->damage);
 
 		if($this->blockHit !== null){
-			$this->namedtag->setInt("tileX", $this->blockHit->x);
-			$this->namedtag->setInt("tileY", $this->blockHit->y);
-			$this->namedtag->setInt("tileZ", $this->blockHit->z);
+			$nbt->setInt("tileX", $this->blockHit->x);
+			$nbt->setInt("tileY", $this->blockHit->y);
+			$nbt->setInt("tileZ", $this->blockHit->z);
 
 			//we intentionally use different ones to PC because we don't have stringy IDs
-			$this->namedtag->setInt("blockId", $this->blockHitId);
-			$this->namedtag->setByte("blockData", $this->blockHitData);
+			$nbt->setInt("blockId", $this->blockHit->getId());
+			$nbt->setByte("blockData", $this->blockHit->getMeta());
 		}
+
+		return $nbt;
 	}
 
 	protected function applyDragBeforeGravity() : bool{
@@ -165,11 +163,8 @@ abstract class Projectile extends Entity{
 	}
 
 	public function onNearbyBlockChange() : void{
-		if($this->blockHit !== null){
-			$blockIn = $this->level->getBlockAt($this->blockHit->x, $this->blockHit->y, $this->blockHit->z);
-			if($blockIn->getId() !== $this->blockHitId or $blockIn->getDamage() !== $this->blockHitData){
-				$this->blockHit = $this->blockHitId = $this->blockHitData = null;
-			}
+		if($this->blockHit !== null and $this->world->isInLoadedTerrain($this->blockHit) and !$this->blockHit->isSameState($this->world->getBlock($this->blockHit))){
+			$this->blockHit = null;
 		}
 
 		parent::onNearbyBlockChange();
@@ -192,7 +187,7 @@ abstract class Projectile extends Entity{
 		$hitResult = null;
 
 		foreach(VoxelRayTrace::betweenPoints($start, $end) as $vector3){
-			$block = $this->level->getBlockAt($vector3->x, $vector3->y, $vector3->z);
+			$block = $this->world->getBlockAt($vector3->x, $vector3->y, $vector3->z);
 
 			$blockHitResult = $this->calculateInterceptWithBlock($block, $start, $end);
 			if($blockHitResult !== null){
@@ -206,7 +201,7 @@ abstract class Projectile extends Entity{
 		$entityDistance = PHP_INT_MAX;
 
 		$newDiff = $end->subtract($start);
-		foreach($this->level->getCollidingEntities($this->boundingBox->addCoord($newDiff->x, $newDiff->y, $newDiff->z)->expand(1, 1, 1), $this) as $entity){
+		foreach($this->world->getCollidingEntities($this->boundingBox->addCoord($newDiff->x, $newDiff->y, $newDiff->z)->expand(1, 1, 1), $this) as $entity){
 			if($entity->getId() === $this->getOwningEntityId() and $this->ticksLived < 5){
 				continue;
 			}
@@ -259,7 +254,7 @@ abstract class Projectile extends Entity{
 			$this->motion->x = $this->motion->y = $this->motion->z = 0;
 		}else{
 			$this->isCollided = $this->onGround = false;
-			$this->blockHit = $this->blockHitId = $this->blockHitData = null;
+			$this->blockHit = null;
 
 			//recompute angles...
 			$f = sqrt(($this->motion->x ** 2) + ($this->motion->z ** 2));
@@ -336,8 +331,6 @@ abstract class Projectile extends Entity{
 	 * @param RayTraceResult $hitResult
 	 */
 	protected function onHitBlock(Block $blockHit, RayTraceResult $hitResult) : void{
-		$this->blockHit = $blockHit->asVector3();
-		$this->blockHitId = $blockHit->getId();
-		$this->blockHitData = $blockHit->getDamage();
+		$this->blockHit = clone $blockHit;
 	}
 }

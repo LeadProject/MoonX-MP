@@ -26,7 +26,7 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
 /**
  * Useless leftover from a 1.8 refactor, does nothing
@@ -47,7 +47,7 @@ class LevelSoundEventPacketV1 extends DataPacket{
 	/** @var bool */
 	public $disableRelativeVolume = false;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->sound = $this->getByte();
 		$this->position = $this->getVector3();
 		$this->extraData = $this->getVarInt();
@@ -56,7 +56,7 @@ class LevelSoundEventPacketV1 extends DataPacket{
 		$this->disableRelativeVolume = $this->getBool();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putByte($this->sound);
 		$this->putVector3($this->position);
 		$this->putVarInt($this->extraData);
@@ -65,7 +65,7 @@ class LevelSoundEventPacketV1 extends DataPacket{
 		$this->putBool($this->disableRelativeVolume);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleLevelSoundEventPacketV1($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleLevelSoundEventPacketV1($this);
 	}
 }

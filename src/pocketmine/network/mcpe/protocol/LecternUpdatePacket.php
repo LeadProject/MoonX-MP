@@ -25,9 +25,9 @@ namespace pocketmine\network\mcpe\protocol;
 
 #include <rules/DataPacket.h>
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class LecternUpdatePacket extends DataPacket/* implements ServerboundPacket*/{
+class LecternUpdatePacket extends DataPacket implements ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::LECTERN_UPDATE_PACKET;
 
 	/** @var int */
@@ -57,7 +57,7 @@ class LecternUpdatePacket extends DataPacket/* implements ServerboundPacket*/{
 		$this->putBool($this->dropBook);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleLecternUpdate($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleLecternUpdate($this);
 	}
 }

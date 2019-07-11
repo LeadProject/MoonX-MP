@@ -31,10 +31,6 @@ abstract class Flowable extends Transparent{
 		return true;
 	}
 
-	public function getHardness() : float{
-		return 0;
-	}
-
 	public function isSolid() : bool{
 		return false;
 	}

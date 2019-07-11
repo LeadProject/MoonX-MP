@@ -23,18 +23,19 @@ declare(strict_types=1);
 
 namespace pocketmine\item;
 
-use pocketmine\block\Block;
 use pocketmine\block\BlockFactory;
+use pocketmine\block\BlockLegacyIds;
+use pocketmine\block\utils\DyeColor;
+use pocketmine\block\utils\SkullType;
+use pocketmine\block\utils\TreeType;
+use pocketmine\entity\EntityFactory;
+use pocketmine\entity\Living;
 use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use function constant;
 use function defined;
 use function explode;
-use function get_class;
-use function gettype;
+use function is_a;
 use function is_numeric;
-use function is_object;
-use function is_string;
 use function str_replace;
 use function strtoupper;
 use function trim;
@@ -44,544 +45,321 @@ use function trim;
  */
 class ItemFactory{
 
-	/** @var \SplFixedArray */
-	private static $list = null;
+	/** @var Item[] */
+	private static $list = [];
 
-	public static function init(){
-		self::$list = new \SplFixedArray(65536);
+	/** @var Item|null */
+	private static $air = null;
 
-		/*새로운 아이템 추가 작업 */
-		self::registerItem(new LingeringPotion());
+	public static function init() : void{
+		self::$list = []; //in case of re-initializing
 
-		self::registerItem(new MedicineBlindness()); /* 247 */
+		self::register(new Apple(Item::APPLE, 0, "Apple"));
+		self::register(new Arrow(Item::ARROW, 0, "Arrow"));
+		self::register(new Axe(Item::DIAMOND_AXE, "Diamond Axe", TieredTool::TIER_DIAMOND));
+		self::register(new Axe(Item::GOLDEN_AXE, "Gold Axe", TieredTool::TIER_GOLD));
+		self::register(new Axe(Item::IRON_AXE, "Iron Axe", TieredTool::TIER_IRON));
+		self::register(new Axe(Item::STONE_AXE, "Stone Axe", TieredTool::TIER_STONE));
+		self::register(new Axe(Item::WOODEN_AXE, "Wooden Axe", TieredTool::TIER_WOODEN));
+		self::register(new BakedPotato(Item::BAKED_POTATO, 0, "Baked Potato"));
+		self::register(new Beetroot(Item::BEETROOT, 0, "Beetroot"));
+		self::register(new BeetrootSeeds(Item::BEETROOT_SEEDS, 0, "Beetroot Seeds"));
+		self::register(new BeetrootSoup(Item::BEETROOT_SOUP, 0, "Beetroot Soup"));
+		self::register(new BlazeRod(Item::BLAZE_ROD, 0, "Blaze Rod"));
+		self::register(new Book(Item::BOOK, 0, "Book"));
+		self::register(new Boots(Item::CHAIN_BOOTS, 0, "Chainmail Boots", new ArmorTypeInfo(1, 196)));
+		self::register(new Boots(Item::DIAMOND_BOOTS, 0, "Diamond Boots", new ArmorTypeInfo(3, 430)));
+		self::register(new Boots(Item::GOLDEN_BOOTS, 0, "Gold Boots", new ArmorTypeInfo(1, 92)));
+		self::register(new Boots(Item::IRON_BOOTS, 0, "Iron Boots", new ArmorTypeInfo(2, 196)));
+		self::register(new Boots(Item::LEATHER_BOOTS, 0, "Leather Boots", new ArmorTypeInfo(1, 66)));
+		self::register(new Bow(Item::BOW, 0, "Bow"));
+		self::register(new Bowl(Item::BOWL, 0, "Bowl"));
+		self::register(new Bread(Item::BREAD, 0, "Bread"));
+		self::register(new Bucket(Item::BUCKET, 0, "Bucket"));
+		self::register(new Carrot(Item::CARROT, 0, "Carrot"));
+		self::register(new Chestplate(Item::CHAIN_CHESTPLATE, 0, "Chainmail Chestplate", new ArmorTypeInfo(5, 241)));
+		self::register(new Chestplate(Item::DIAMOND_CHESTPLATE, 0, "Diamond Chestplate", new ArmorTypeInfo(8, 529)));
+		self::register(new Chestplate(Item::GOLDEN_CHESTPLATE, 0, "Gold Chestplate", new ArmorTypeInfo(5, 113)));
+		self::register(new Chestplate(Item::IRON_CHESTPLATE, 0, "Iron Chestplate", new ArmorTypeInfo(6, 241)));
+		self::register(new Chestplate(Item::LEATHER_CHESTPLATE, 0, "Leather Tunic", new ArmorTypeInfo(3, 81)));
+		self::register(new ChorusFruit(Item::CHORUS_FRUIT, 0, "Chorus Fruit"));
+		self::register(new Clock(Item::CLOCK, 0, "Clock"));
+		self::register(new Clownfish(Item::CLOWNFISH, 0, "Clownfish"));
+		self::register(new Coal(Item::COAL, 0, "Coal"));
+		self::register(new Coal(Item::COAL, 1, "Charcoal"));
+		self::register(new CocoaBeans(Item::DYE, 3, "Cocoa Beans"));
+		self::register(new Compass(Item::COMPASS, 0, "Compass"));
+		self::register(new CookedChicken(Item::COOKED_CHICKEN, 0, "Cooked Chicken"));
+		self::register(new CookedFish(Item::COOKED_FISH, 0, "Cooked Fish"));
+		self::register(new CookedMutton(Item::COOKED_MUTTON, 0, "Cooked Mutton"));
+		self::register(new CookedPorkchop(Item::COOKED_PORKCHOP, 0, "Cooked Porkchop"));
+		self::register(new CookedRabbit(Item::COOKED_RABBIT, 0, "Cooked Rabbit"));
+		self::register(new CookedSalmon(Item::COOKED_SALMON, 0, "Cooked Salmon"));
+		self::register(new Cookie(Item::COOKIE, 0, "Cookie"));
+		self::register(new DriedKelp(Item::DRIED_KELP, 0, "Dried Kelp"));
+		self::register(new Egg(Item::EGG, 0, "Egg"));
+		self::register(new EnderPearl(Item::ENDER_PEARL, 0, "Ender Pearl"));
+		self::register(new ExperienceBottle(Item::EXPERIENCE_BOTTLE, 0, "Bottle o' Enchanting"));
+		self::register(new Fertilizer(Item::DYE, 15, "Bone Meal"));
+		self::register(new FishingRod(Item::FISHING_ROD, 0, "Fishing Rod"));
+		self::register(new FlintSteel(Item::FLINT_STEEL, 0, "Flint and Steel"));
+		self::register(new GlassBottle(Item::GLASS_BOTTLE, 0, "Glass Bottle"));
+		self::register(new GoldenApple(Item::GOLDEN_APPLE, 0, "Golden Apple"));
+		self::register(new GoldenAppleEnchanted(Item::ENCHANTED_GOLDEN_APPLE, 0, "Enchanted Golden Apple"));
+		self::register(new GoldenCarrot(Item::GOLDEN_CARROT, 0, "Golden Carrot"));
+		self::register(new Helmet(Item::CHAIN_HELMET, 0, "Chainmail Helmet", new ArmorTypeInfo(2, 166)));
+		self::register(new Helmet(Item::DIAMOND_HELMET, 0, "Diamond Helmet", new ArmorTypeInfo(3, 364)));
+		self::register(new Helmet(Item::GOLDEN_HELMET, 0, "Gold Helmet", new ArmorTypeInfo(2, 78)));
+		self::register(new Helmet(Item::IRON_HELMET, 0, "Iron Helmet", new ArmorTypeInfo(2, 166)));
+		self::register(new Helmet(Item::LEATHER_HELMET, 0, "Leather Cap", new ArmorTypeInfo(1, 56)));
+		self::register(new Hoe(Item::DIAMOND_HOE, "Diamond Hoe", TieredTool::TIER_DIAMOND));
+		self::register(new Hoe(Item::GOLDEN_HOE, "Golden Hoe", TieredTool::TIER_GOLD));
+		self::register(new Hoe(Item::IRON_HOE, "Iron Hoe", TieredTool::TIER_IRON));
+		self::register(new Hoe(Item::STONE_HOE, "Stone Hoe", TieredTool::TIER_STONE));
+		self::register(new Hoe(Item::WOODEN_HOE, "Wooden Hoe", TieredTool::TIER_WOODEN));
+		self::register(new Item(Item::BLAZE_POWDER, 0, "Blaze Powder"));
+		self::register(new Item(Item::BLEACH, 0, "Bleach")); //EDU
+		self::register(new Item(Item::BONE, 0, "Bone"));
+		self::register(new Item(Item::BRICK, 0, "Brick"));
+		self::register(new Item(Item::CHORUS_FRUIT_POPPED, 0, "Popped Chorus Fruit"));
+		self::register(new Item(Item::CLAY_BALL, 0, "Clay"));
+		self::register(new Item(Item::COMPOUND, 0, "Salt"));
+		self::register(new Item(Item::COMPOUND, 1, "Sodium Oxide"));
+		self::register(new Item(Item::COMPOUND, 2, "Sodium Hydroxide"));
+		self::register(new Item(Item::COMPOUND, 3, "Magnesium Nitrate"));
+		self::register(new Item(Item::COMPOUND, 4, "Iron Sulphide"));
+		self::register(new Item(Item::COMPOUND, 5, "Lithium Hydride"));
+		self::register(new Item(Item::COMPOUND, 6, "Sodium Hydride"));
+		self::register(new Item(Item::COMPOUND, 7, "Calcium Bromide"));
+		self::register(new Item(Item::COMPOUND, 8, "Magnesium Oxide"));
+		self::register(new Item(Item::COMPOUND, 9, "Sodium Acetate"));
+		self::register(new Item(Item::COMPOUND, 10, "Luminol"));
+		self::register(new Item(Item::COMPOUND, 11, "Charcoal")); //??? maybe bug
+		self::register(new Item(Item::COMPOUND, 12, "Sugar")); //??? maybe bug
+		self::register(new Item(Item::COMPOUND, 13, "Aluminium Oxide"));
+		self::register(new Item(Item::COMPOUND, 14, "Boron Trioxide"));
+		self::register(new Item(Item::COMPOUND, 15, "Soap"));
+		self::register(new Item(Item::COMPOUND, 16, "Polyethylene"));
+		self::register(new Item(Item::COMPOUND, 17, "Rubbish"));
+		self::register(new Item(Item::COMPOUND, 18, "Magnesium Salts"));
+		self::register(new Item(Item::COMPOUND, 19, "Sulphate"));
+		self::register(new Item(Item::COMPOUND, 20, "Barium Sulphate"));
+		self::register(new Item(Item::COMPOUND, 21, "Potassium Chloride"));
+		self::register(new Item(Item::COMPOUND, 22, "Mercuric Chloride"));
+		self::register(new Item(Item::COMPOUND, 23, "Cerium Chloride"));
+		self::register(new Item(Item::COMPOUND, 24, "Tungsten Chloride"));
+		self::register(new Item(Item::COMPOUND, 25, "Calcium Chloride"));
+		self::register(new Item(Item::COMPOUND, 26, "Water")); //???
+		self::register(new Item(Item::COMPOUND, 27, "Glue"));
+		self::register(new Item(Item::COMPOUND, 28, "Hypochlorite"));
+		self::register(new Item(Item::COMPOUND, 29, "Crude Oil"));
+		self::register(new Item(Item::COMPOUND, 30, "Latex"));
+		self::register(new Item(Item::COMPOUND, 31, "Potassium Iodide"));
+		self::register(new Item(Item::COMPOUND, 32, "Sodium Fluoride"));
+		self::register(new Item(Item::COMPOUND, 33, "Benzene"));
+		self::register(new Item(Item::COMPOUND, 34, "Ink"));
+		self::register(new Item(Item::COMPOUND, 35, "Hydrogen Peroxide"));
+		self::register(new Item(Item::COMPOUND, 36, "Ammonia"));
+		self::register(new Item(Item::COMPOUND, 37, "Sodium Hypochlorite"));
+		self::register(new Item(Item::DIAMOND, 0, "Diamond"));
+		self::register(new Item(Item::DRAGON_BREATH, 0, "Dragon's Breath"));
+		self::register(new Item(Item::DYE, 0, "Ink Sac"));
+		self::register(new Item(Item::DYE, 4, "Lapis Lazuli"));
+		self::register(new Item(Item::EMERALD, 0, "Emerald"));
+		self::register(new Item(Item::FEATHER, 0, "Feather"));
+		self::register(new Item(Item::FERMENTED_SPIDER_EYE, 0, "Fermented Spider Eye"));
+		self::register(new Item(Item::FLINT, 0, "Flint"));
+		self::register(new Item(Item::GHAST_TEAR, 0, "Ghast Tear"));
+		self::register(new Item(Item::GLISTERING_MELON, 0, "Glistering Melon"));
+		self::register(new Item(Item::GLOWSTONE_DUST, 0, "Glowstone Dust"));
+		self::register(new Item(Item::GOLD_INGOT, 0, "Gold Ingot"));
+		self::register(new Item(Item::GOLD_NUGGET, 0, "Gold Nugget"));
+		self::register(new Item(Item::GUNPOWDER, 0, "Gunpowder"));
+		self::register(new Item(Item::HEART_OF_THE_SEA, 0, "Heart of the Sea"));
+		self::register(new Item(Item::IRON_INGOT, 0, "Iron Ingot"));
+		self::register(new Item(Item::IRON_NUGGET, 0, "Iron Nugget"));
+		self::register(new Item(Item::LEATHER, 0, "Leather"));
+		self::register(new Item(Item::MAGMA_CREAM, 0, "Magma Cream"));
+		self::register(new Item(Item::NAUTILUS_SHELL, 0, "Nautilus Shell"));
+		self::register(new Item(Item::NETHER_BRICK, 0, "Nether Brick"));
+		self::register(new Item(Item::NETHER_QUARTZ, 0, "Nether Quartz"));
+		self::register(new Item(Item::NETHER_STAR, 0, "Nether Star"));
+		self::register(new Item(Item::PAPER, 0, "Paper"));
+		self::register(new Item(Item::PRISMARINE_CRYSTALS, 0, "Prismarine Crystals"));
+		self::register(new Item(Item::PRISMARINE_SHARD, 0, "Prismarine Shard"));
+		self::register(new Item(Item::RABBIT_FOOT, 0, "Rabbit's Foot"));
+		self::register(new Item(Item::RABBIT_HIDE, 0, "Rabbit Hide"));
+		self::register(new Item(Item::SHULKER_SHELL, 0, "Shulker Shell"));
+		self::register(new Item(Item::SLIME_BALL, 0, "Slimeball"));
+		self::register(new Item(Item::SUGAR, 0, "Sugar"));
+		self::register(new Item(Item::TURTLE_SHELL_PIECE, 0, "Scute"));
+		self::register(new Item(Item::WHEAT, 0, "Wheat"));
+		self::register(new ItemBlock(BlockLegacyIds::ACACIA_DOOR_BLOCK, 0, Item::ACACIA_DOOR));
+		self::register(new ItemBlock(BlockLegacyIds::BIRCH_DOOR_BLOCK, 0, Item::BIRCH_DOOR));
+		self::register(new ItemBlock(BlockLegacyIds::BREWING_STAND_BLOCK, 0, Item::BREWING_STAND));
+		self::register(new ItemBlock(BlockLegacyIds::CAKE_BLOCK, 0, Item::CAKE));
+		self::register(new ItemBlock(BlockLegacyIds::CAULDRON_BLOCK, 0, Item::CAULDRON));
+		self::register(new ItemBlock(BlockLegacyIds::COMPARATOR_BLOCK, 0, Item::COMPARATOR));
+		self::register(new ItemBlock(BlockLegacyIds::DARK_OAK_DOOR_BLOCK, 0, Item::DARK_OAK_DOOR));
+		self::register(new ItemBlock(BlockLegacyIds::FLOWER_POT_BLOCK, 0, Item::FLOWER_POT));
+		self::register(new ItemBlock(BlockLegacyIds::HOPPER_BLOCK, 0, Item::HOPPER));
+		self::register(new ItemBlock(BlockLegacyIds::IRON_DOOR_BLOCK, 0, Item::IRON_DOOR));
+		self::register(new ItemBlock(BlockLegacyIds::ITEM_FRAME_BLOCK, 0, Item::ITEM_FRAME));
+		self::register(new ItemBlock(BlockLegacyIds::JUNGLE_DOOR_BLOCK, 0, Item::JUNGLE_DOOR));
+		self::register(new ItemBlock(BlockLegacyIds::NETHER_WART_PLANT, 0, Item::NETHER_WART));
+		self::register(new ItemBlock(BlockLegacyIds::OAK_DOOR_BLOCK, 0, Item::OAK_DOOR));
+		self::register(new ItemBlock(BlockLegacyIds::REPEATER_BLOCK, 0, Item::REPEATER));
+		self::register(new ItemBlock(BlockLegacyIds::SPRUCE_DOOR_BLOCK, 0, Item::SPRUCE_DOOR));
+		self::register(new ItemBlock(BlockLegacyIds::SUGARCANE_BLOCK, 0, Item::SUGARCANE));
+		self::register(new Leggings(Item::CHAIN_LEGGINGS, 0, "Chainmail Leggings", new ArmorTypeInfo(4, 226)));
+		self::register(new Leggings(Item::DIAMOND_LEGGINGS, 0, "Diamond Leggings", new ArmorTypeInfo(6, 496)));
+		self::register(new Leggings(Item::GOLDEN_LEGGINGS, 0, "Gold Leggings", new ArmorTypeInfo(3, 106)));
+		self::register(new Leggings(Item::IRON_LEGGINGS, 0, "Iron Leggings", new ArmorTypeInfo(5, 226)));
+		self::register(new Leggings(Item::LEATHER_LEGGINGS, 0, "Leather Pants", new ArmorTypeInfo(2, 76)));
+		//TODO: fix metadata for buckets with still liquid in them
+		//the meta values are intentionally hardcoded because block IDs will change in the future
+		self::register(new LiquidBucket(Item::BUCKET, 8, "Water Bucket", BlockLegacyIds::FLOWING_WATER));
+		self::register(new LiquidBucket(Item::BUCKET, 10, "Lava Bucket", BlockLegacyIds::FLOWING_LAVA));
+		self::register(new Melon(Item::MELON, 0, "Melon"));
+		self::register(new MelonSeeds(Item::MELON_SEEDS, 0, "Melon Seeds"));
+		self::register(new MilkBucket(Item::BUCKET, 1, "Milk Bucket"));
+		self::register(new Minecart(Item::MINECART, 0, "Minecart"));
+		self::register(new MushroomStew(Item::MUSHROOM_STEW, 0, "Mushroom Stew"));
+		self::register(new PaintingItem(Item::PAINTING, 0, "Painting"));
+		self::register(new Pickaxe(Item::DIAMOND_PICKAXE, "Diamond Pickaxe", TieredTool::TIER_DIAMOND));
+		self::register(new Pickaxe(Item::GOLDEN_PICKAXE, "Gold Pickaxe", TieredTool::TIER_GOLD));
+		self::register(new Pickaxe(Item::IRON_PICKAXE, "Iron Pickaxe", TieredTool::TIER_IRON));
+		self::register(new Pickaxe(Item::STONE_PICKAXE, "Stone Pickaxe", TieredTool::TIER_STONE));
+		self::register(new Pickaxe(Item::WOODEN_PICKAXE, "Wooden Pickaxe", TieredTool::TIER_WOODEN));
+		self::register(new PoisonousPotato(Item::POISONOUS_POTATO, 0, "Poisonous Potato"));
+		self::register(new Potato(Item::POTATO, 0, "Potato"));
+		self::register(new Pufferfish(Item::PUFFERFISH, 0, "Pufferfish"));
+		self::register(new PumpkinPie(Item::PUMPKIN_PIE, 0, "Pumpkin Pie"));
+		self::register(new PumpkinSeeds(Item::PUMPKIN_SEEDS, 0, "Pumpkin Seeds"));
+		self::register(new RabbitStew(Item::RABBIT_STEW, 0, "Rabbit Stew"));
+		self::register(new RawBeef(Item::RAW_BEEF, 0, "Raw Beef"));
+		self::register(new RawChicken(Item::RAW_CHICKEN, 0, "Raw Chicken"));
+		self::register(new RawFish(Item::RAW_FISH, 0, "Raw Fish"));
+		self::register(new RawMutton(Item::RAW_MUTTON, 0, "Raw Mutton"));
+		self::register(new RawPorkchop(Item::RAW_PORKCHOP, 0, "Raw Porkchop"));
+		self::register(new RawRabbit(Item::RAW_RABBIT, 0, "Raw Rabbit"));
+		self::register(new RawSalmon(Item::RAW_SALMON, 0, "Raw Salmon"));
+		self::register(new Redstone(Item::REDSTONE, 0, "Redstone"));
+		self::register(new RottenFlesh(Item::ROTTEN_FLESH, 0, "Rotten Flesh"));
+		self::register(new Shears(Item::SHEARS, 0, "Shears"));
+		self::register(new Shovel(Item::DIAMOND_SHOVEL, "Diamond Shovel", TieredTool::TIER_DIAMOND));
+		self::register(new Shovel(Item::GOLDEN_SHOVEL, "Gold Shovel", TieredTool::TIER_GOLD));
+		self::register(new Shovel(Item::IRON_SHOVEL, "Iron Shovel", TieredTool::TIER_IRON));
+		self::register(new Shovel(Item::STONE_SHOVEL, "Stone Shovel", TieredTool::TIER_STONE));
+		self::register(new Shovel(Item::WOODEN_SHOVEL, "Wooden Shovel", TieredTool::TIER_WOODEN));
+		self::register(new Sign(BlockLegacyIds::STANDING_SIGN, 0, Item::SIGN));
+		self::register(new Sign(BlockLegacyIds::SPRUCE_STANDING_SIGN, 0, Item::SPRUCE_SIGN));
+		self::register(new Sign(BlockLegacyIds::BIRCH_STANDING_SIGN, 0, Item::BIRCH_SIGN));
+		self::register(new Sign(BlockLegacyIds::JUNGLE_STANDING_SIGN, 0, Item::JUNGLE_SIGN));
+		self::register(new Sign(BlockLegacyIds::ACACIA_STANDING_SIGN, 0, Item::ACACIA_SIGN));
+		self::register(new Sign(BlockLegacyIds::DARKOAK_STANDING_SIGN, 0, Item::DARKOAK_SIGN));
+		self::register(new Snowball(Item::SNOWBALL, 0, "Snowball"));
+		self::register(new SpiderEye(Item::SPIDER_EYE, 0, "Spider Eye"));
+		self::register(new Steak(Item::STEAK, 0, "Steak"));
+		self::register(new Stick(Item::STICK, 0, "Stick"));
+		self::register(new StringItem(Item::STRING, 0, "String"));
+		self::register(new Sword(Item::DIAMOND_SWORD, "Diamond Sword", TieredTool::TIER_DIAMOND));
+		self::register(new Sword(Item::GOLDEN_SWORD, "Gold Sword", TieredTool::TIER_GOLD));
+		self::register(new Sword(Item::IRON_SWORD, "Iron Sword", TieredTool::TIER_IRON));
+		self::register(new Sword(Item::STONE_SWORD, "Stone Sword", TieredTool::TIER_STONE));
+		self::register(new Sword(Item::WOODEN_SWORD, "Wooden Sword", TieredTool::TIER_WOODEN));
+		self::register(new Totem(Item::TOTEM, 0, "Totem of Undying"));
+		self::register(new WheatSeeds(Item::WHEAT_SEEDS, 0, "Wheat Seeds"));
+		self::register(new WritableBook(Item::WRITABLE_BOOK, 0, "Book & Quill"));
+		self::register(new WrittenBook(Item::WRITTEN_BOOK, 0, "Written Book"));
 
-		self::registerItem(new Item(342, 0, "Minecart with Chest"));
+		foreach(SkullType::getAll() as $skullType){
+			self::register(new Skull(Item::SKULL, $skullType->getMagicNumber(), $skullType->getDisplayName(), $skullType));
+		}
 
-		self::registerItem(new Item(381, 0, "Ender Eye"));
+		/** @var int[]|\SplObjectStorage $dyeMap */
+		$dyeMap = new \SplObjectStorage();
+		$dyeMap[DyeColor::BLACK()] = 16;
+		$dyeMap[DyeColor::BROWN()] = 17;
+		$dyeMap[DyeColor::BLUE()] = 18;
+		$dyeMap[DyeColor::WHITE()] = 19;
+		foreach(DyeColor::getAll() as $color){
+			//TODO: use colour object directly
+			//TODO: add interface to dye-colour objects
+			self::register(new Dye(Item::DYE, $dyeMap[$color] ?? $color->getInvertedMagicNumber(), $color->getDisplayName() . " Dye", $color));
+			self::register(new Bed(Item::BED, $color->getMagicNumber(), $color->getDisplayName() . " Bed", $color));
+			self::register(new Banner(Item::BANNER, $color->getInvertedMagicNumber(), $color->getDisplayName() . " Banner", $color));
+		}
 
-		self::registerItem(new CarrotonaStick()); /* 398 */
+		foreach(Potion::ALL as $type){
+			self::register(new Potion(Item::POTION, $type, "Potion"));
+			self::register(new SplashPotion(Item::SPLASH_POTION, $type, "Splash Potion"));
+		}
 
-		self::registerItem(new Item(407, 0, "Minecart with TNT"));
-		self::registerItem(new Item(408, 0, "Minecart with Hopper"));
+		foreach(EntityFactory::getKnownTypes() as $className){
+			/** @var Living|string $className */
+			if(is_a($className, Living::class, true) and $className::NETWORK_ID !== -1){
+				self::register(new SpawnEgg(Item::SPAWN_EGG, $className::NETWORK_ID, "Spawn Egg", $className));
+			}
+		}
 
-		self::registerItem(new LeatherHorseArmor()); /* 416 */
-		self::registerItem(new IronHorseArmor()); /* 417 */
-		self::registerItem(new GoldHorseArmor()); /* 418 */
-		self::registerItem(new DiamondHorseArmor()); /* 419 */
+		foreach(TreeType::getAll() as $type){
+			self::register(new Boat(Item::BOAT, $type->getMagicNumber(), $type->getDisplayName() . " Boat", $type));
+		}
 
-		self::registerItem(new Item(421, 0, "Name Tag"));
-
-		self::registerItem(new EndCrystal()); /* 426 */
-
-		self::registerItem(new BannerPattern(434, 0, "Banner Pattern"));
-
-		self::registerItem(new Trident()); /* 455 */
-
-		self::registerItem(new TurtleHelmet()); /* 469 */
-		self::registerItem(new PhantomMembrane()); /* 470 */
-		self::registerItem(new CrossBow()); /* 471 */
-
-		self::registerItem(new SpruceSign());
-		self::registerItem(new BirchSign());
-		self::registerItem(new JungleSign());
-		self::registerItem(new AcaciaSign());
-		self::registerItem(new DarkOakSign());
-
-ItemFactory::registerItem(new Item(-130, 0, ''), true);
-ItemFactory::registerItem(new Item(-131, 0, ''), true);
-ItemFactory::registerItem(new Item(-132, 0, ''), true);
-ItemFactory::registerItem(new Item(-133, 0, ''), true);
-ItemFactory::registerItem(new Item(-134, 0, ''), true);
-ItemFactory::registerItem(new Item(-135, 0, ''), true);
-ItemFactory::registerItem(new Item(-136, 0, ''), true);
-ItemFactory::registerItem(new Item(-137, 0, ''), true);
-ItemFactory::registerItem(new Item(-138, 0, ''), true);
-ItemFactory::registerItem(new Item(-139, 0, ''), true);
-ItemFactory::registerItem(new Item(-140, 0, ''), true);
-ItemFactory::registerItem(new Item(-141, 0, ''), true);
-ItemFactory::registerItem(new Item(-142, 0, ''), true);
-ItemFactory::registerItem(new Item(-143, 0, ''), true);
-ItemFactory::registerItem(new Item(-144, 0, ''), true);
-ItemFactory::registerItem(new Item(-145, 0, ''), true);
-ItemFactory::registerItem(new Item(-146, 0, ''), true);
-ItemFactory::registerItem(new Item(-147, 0, ''), true);
-ItemFactory::registerItem(new Item(-148, 0, ''), true);
-ItemFactory::registerItem(new Item(-149, 0, ''), true);
-ItemFactory::registerItem(new Item(-150, 0, ''), true);
-ItemFactory::registerItem(new Item(-151, 0, ''), true);
-ItemFactory::registerItem(new Item(-152, 0, ''), true);
-ItemFactory::registerItem(new Item(-153, 0, ''), true);
-ItemFactory::registerItem(new Item(-154, 0, ''), true);
-ItemFactory::registerItem(new Item(-155, 0, ''), true);
-ItemFactory::registerItem(new Item(-156, 0, ''), true);
-ItemFactory::registerItem(new Item(-157, 0, ''), true);
-ItemFactory::registerItem(new Item(-158, 0, ''), true);
-ItemFactory::registerItem(new Item(-159, 0, ''), true);
-ItemFactory::registerItem(new Item(-160, 0, ''), true);
-ItemFactory::registerItem(new Item(-161, 0, ''), true);
-ItemFactory::registerItem(new Item(-162, 0, ''), true);
-ItemFactory::registerItem(new Item(-163, 0, ''), true);
-ItemFactory::registerItem(new Item(-164, 0, ''), true);
-ItemFactory::registerItem(new Item(-165, 0, ''), true);
-ItemFactory::registerItem(new Item(-166, 0, ''), true);
-ItemFactory::registerItem(new Item(-167, 0, ''), true);
-ItemFactory::registerItem(new Item(-168, 0, ''), true);
-ItemFactory::registerItem(new Item(-169, 0, ''), true);
-ItemFactory::registerItem(new Item(-170, 0, ''), true);
-ItemFactory::registerItem(new Item(-171, 0, ''), true);
-ItemFactory::registerItem(new Item(-172, 0, ''), true);
-ItemFactory::registerItem(new Item(-173, 0, ''), true);
-ItemFactory::registerItem(new Item(-174, 0, ''), true);
-ItemFactory::registerItem(new Item(-175, 0, ''), true);
-ItemFactory::registerItem(new Item(-176, 0, ''), true);
-ItemFactory::registerItem(new Item(-177, 0, ''), true);
-ItemFactory::registerItem(new Item(-178, 0, ''), true);
-ItemFactory::registerItem(new Item(-179, 0, ''), true);
-ItemFactory::registerItem(new Item(-180, 0, ''), true);
-ItemFactory::registerItem(new Item(-181, 0, ''), true);
-ItemFactory::registerItem(new Item(-182, 0, ''), true);
-ItemFactory::registerItem(new Item(-183, 0, ''), true);
-ItemFactory::registerItem(new Item(-184, 0, ''), true);
-ItemFactory::registerItem(new Item(-185, 0, ''), true);
-ItemFactory::registerItem(new Item(-186, 0, ''), true);
-ItemFactory::registerItem(new Item(-187, 0, ''), true);
-ItemFactory::registerItem(new Item(-188, 0, ''), true);
-ItemFactory::registerItem(new Item(-189, 0, ''), true);
-ItemFactory::registerItem(new Item(-190, 0, ''), true);
-ItemFactory::registerItem(new Item(-191, 0, ''), true);
-ItemFactory::registerItem(new Item(-192, 0, ''), true);
-ItemFactory::registerItem(new Item(-193, 0, ''), true);
-ItemFactory::registerItem(new Item(-194, 0, ''), true);
-ItemFactory::registerItem(new Item(-195, 0, ''), true);
-ItemFactory::registerItem(new Item(-196, 0, ''), true);
-ItemFactory::registerItem(new Item(-197, 0, ''), true);
-ItemFactory::registerItem(new Item(-198, 0, ''), true);
-ItemFactory::registerItem(new Item(-199, 0, ''), true);
-ItemFactory::registerItem(new Item(-200, 0, ''), true);
-ItemFactory::registerItem(new Item(-201, 0, ''), true);
-ItemFactory::registerItem(new Item(-202, 0, ''), true);
-ItemFactory::registerItem(new Item(-205, 0, ''), true);
-ItemFactory::registerItem(new Item(-206, 0, ''), true);
-ItemFactory::registerItem(new Item(-207, 0, ''), true);
-ItemFactory::registerItem(new Item(-208, 0, ''), true);
-ItemFactory::registerItem(new Item(-209, 0, ''), true);
-ItemFactory::registerItem(new Item(-210, 0, ''), true);
-ItemFactory::registerItem(new Item(-211, 0, ''), true);
-
-		ItemFactory::registerItem(new Item(-2, 0, "Prismarine Stairrs"), true);
-		ItemFactory::registerItem(new Item(-3, 0, "Dark Prismarine Stairrs"), true);
-		ItemFactory::registerItem(new Item(-4, 0, "Prismarine Brikcs Stairrs"), true);
-		ItemFactory::registerItem(new Item(-5, 0, "Stripped Spruce Log"), true);
-		ItemFactory::registerItem(new Item(-6, 0, "Stripped Birch Log"), true);
-		ItemFactory::registerItem(new Item(-7, 0, "Stripped Jungle Log"), true);
-		ItemFactory::registerItem(new Item(-8, 0, "Stripped Acacia Log"), true);
-		ItemFactory::registerItem(new Item(-9, 0, "Stripped Dark Oak Log"), true);
-		ItemFactory::registerItem(new Item(-10, 0, "Stripped Oak Log"), true);
-		ItemFactory::registerItem(new Item(-11, 0, "Blue Ice"), true);
-		ItemFactory::registerItem(new Item(-203, 0, "Barrel"), true);
-		ItemFactory::registerItem(new Item(-204, 0, "Loom"), true);
-		ItemFactory::registerItem(new Item(-212, 0, "Wood"), true);
-		ItemFactory::registerItem(new Item(-213, 0, "Composter"), true);
-
-/*	ItemFactory::registerItem(new ItemBlock(257, 0, -2), true);
-		ItemFactory::registerItem(new ItemBlock(258, 0, -3), true);
-		ItemFactory::registerItem(new ItemBlock(259, 0, -4), true);
-		ItemFactory::registerItem(new ItemBlock(260, 0, -5), true);
-		ItemFactory::registerItem(new ItemBlock(261, 0, -6), true);
-		ItemFactory::registerItem(new ItemBlock(262, 0, -7), true);
-		ItemFactory::registerItem(new ItemBlock(263, 0, -8), true);
-		ItemFactory::registerItem(new ItemBlock(264, 0, -9), true);
-		ItemFactory::registerItem(new ItemBlock(265, 0, -10), true);
-		ItemFactory::registerItem(new ItemBlock(266, 0, -11), true); */
-
-		ItemFactory::registerItem(new ItemBlock(458, 0, -203), true);
-		ItemFactory::registerItem(new ItemBlock(458, 0, -203), true);
-		ItemFactory::registerItem(new ItemBlock(459, 0, -204), true);
-		ItemFactory::registerItem(new ItemBlock(467, 0, -212), true);
-		ItemFactory::registerItem(new ItemBlock(468, 0, -213), true);
-		ItemFactory::registerItem(new ItemBlock(393, 0, -138), true);
-		ItemFactory::registerItem(new ItemBlock(392, 0, -137), true);
-		ItemFactory::registerItem(new ItemBlock(391, 0, -136), true);
-		ItemFactory::registerItem(new ItemBlock(390, 0, -135), true);
-		ItemFactory::registerItem(new ItemBlock(389, 0, -134), true);
-		ItemFactory::registerItem(new ItemBlock(388, 0, -133), true);
-		ItemFactory::registerItem(new ItemBlock(387, 0, -132), true);
-		ItemFactory::registerItem(new ItemBlock(386, 0, -131), true);
-		ItemFactory::registerItem(new ItemBlock(385, 0, -130), true);
-
-		ItemFactory::registerItem(new Item(335, 0, "Kelp"), true);
-		ItemFactory::registerItem(new ItemBlock(393, 0, 335), true);
-
-		ItemFactory::registerItem(new ItemBlock(411, 0, -156), true);
-		ItemFactory::registerItem(new ItemBlock(412, 0, -161), true);
-		ItemFactory::registerItem(new ItemBlock(413, 0, -159), true);
-		ItemFactory::registerItem(new ItemBlock(418, 0, -163), true);
-		ItemFactory::registerItem(new ItemBlock(419, 0, -164), true);
-		ItemFactory::registerItem(new ItemBlock(420, 0, -165), true);
-
-		ItemFactory::registerItem(new ItemBlock(461, 0, -206), true);
-		ItemFactory::registerItem(new ItemBlock(464, 0, -200), true);
-		ItemFactory::registerItem(new ItemBlock(455, 0, -201), true);
-		ItemFactory::registerItem(new ItemBlock(456, 0, -201), true);
-		ItemFactory::registerItem(new ItemBlock(457, 0, -200), true);
-		ItemFactory::registerItem(new ItemBlock(451, 0, -196), true);
-		ItemFactory::registerItem(new ItemBlock(452, 0, -195), true);
-		ItemFactory::registerItem(new ItemBlock(453, 0, -198), true);
-		ItemFactory::registerItem(new ItemBlock(450, 0, -195), true);
-		ItemFactory::registerItem(new ItemBlock(462, 0, -207), true);
-		ItemFactory::registerItem(new ItemBlock(462, 0, 477), true);
-
-		ItemFactory::registerItem(new Item(477, 0, 'SWEET_BERRIES'), true);
-
-	/* Element */
-	ItemFactory::registerItem(new Item(-12, 0, ''), true);
-	ItemFactory::registerItem(new Item(-13, 0, ''), true);
-	ItemFactory::registerItem(new Item(-14, 0, ''), true);
-	ItemFactory::registerItem(new Item(-15, 0, ''), true);
-	ItemFactory::registerItem(new Item(-16, 0, ''), true);
-	ItemFactory::registerItem(new Item(-17, 0, ''), true);
-	ItemFactory::registerItem(new Item(-18, 0, ''), true);
-	ItemFactory::registerItem(new Item(-19, 0, ''), true);
-	ItemFactory::registerItem(new Item(-20, 0, ''), true);
-	ItemFactory::registerItem(new Item(-21, 0, ''), true);
-	ItemFactory::registerItem(new Item(-22, 0, ''), true);
-	ItemFactory::registerItem(new Item(-23, 0, ''), true);
-	ItemFactory::registerItem(new Item(-24, 0, ''), true);
-	ItemFactory::registerItem(new Item(-25, 0, ''), true);
-	ItemFactory::registerItem(new Item(-26, 0, ''), true);
-	ItemFactory::registerItem(new Item(-27, 0, ''), true);
-	ItemFactory::registerItem(new Item(-28, 0, ''), true);
-	ItemFactory::registerItem(new Item(-29, 0, ''), true);
-	ItemFactory::registerItem(new Item(-30, 0, ''), true);
-	ItemFactory::registerItem(new Item(-31, 0, ''), true);
-	ItemFactory::registerItem(new Item(-32, 0, ''), true);
-	ItemFactory::registerItem(new Item(-33, 0, ''), true);
-	ItemFactory::registerItem(new Item(-34, 0, ''), true);
-	ItemFactory::registerItem(new Item(-35, 0, ''), true);
-	ItemFactory::registerItem(new Item(-36, 0, ''), true);
-	ItemFactory::registerItem(new Item(-37, 0, ''), true);
-	ItemFactory::registerItem(new Item(-38, 0, ''), true);
-	ItemFactory::registerItem(new Item(-39, 0, ''), true);
-	ItemFactory::registerItem(new Item(-40, 0, ''), true);
-	ItemFactory::registerItem(new Item(-41, 0, ''), true);
-	ItemFactory::registerItem(new Item(-42, 0, ''), true);
-	ItemFactory::registerItem(new Item(-43, 0, ''), true);
-	ItemFactory::registerItem(new Item(-44, 0, ''), true);
-	ItemFactory::registerItem(new Item(-45, 0, ''), true);
-	ItemFactory::registerItem(new Item(-46, 0, ''), true);
-	ItemFactory::registerItem(new Item(-47, 0, ''), true);
-	ItemFactory::registerItem(new Item(-48, 0, ''), true);
-	ItemFactory::registerItem(new Item(-49, 0, ''), true);
-	ItemFactory::registerItem(new Item(-50, 0, ''), true);
-	ItemFactory::registerItem(new Item(-51, 0, ''), true);
-	ItemFactory::registerItem(new Item(-52, 0, ''), true);
-	ItemFactory::registerItem(new Item(-53, 0, ''), true);
-	ItemFactory::registerItem(new Item(-54, 0, ''), true);
-	ItemFactory::registerItem(new Item(-55, 0, ''), true);
-	ItemFactory::registerItem(new Item(-56, 0, ''), true);
-	ItemFactory::registerItem(new Item(-57, 0, ''), true);
-	ItemFactory::registerItem(new Item(-58, 0, ''), true);
-	ItemFactory::registerItem(new Item(-59, 0, ''), true);
-	ItemFactory::registerItem(new Item(-60, 0, ''), true);
-	ItemFactory::registerItem(new Item(-61, 0, ''), true);
-	ItemFactory::registerItem(new Item(-62, 0, ''), true);
-	ItemFactory::registerItem(new Item(-63, 0, ''), true);
-	ItemFactory::registerItem(new Item(-64, 0, ''), true);
-	ItemFactory::registerItem(new Item(-65, 0, ''), true);
-	ItemFactory::registerItem(new Item(-66, 0, ''), true);
-	ItemFactory::registerItem(new Item(-67, 0, ''), true);
-	ItemFactory::registerItem(new Item(-68, 0, ''), true);
-	ItemFactory::registerItem(new Item(-69, 0, ''), true);
-	ItemFactory::registerItem(new Item(-70, 0, ''), true);
-	ItemFactory::registerItem(new Item(-71, 0, ''), true);
-	ItemFactory::registerItem(new Item(-72, 0, ''), true);
-	ItemFactory::registerItem(new Item(-73, 0, ''), true);
-	ItemFactory::registerItem(new Item(-74, 0, ''), true);
-	ItemFactory::registerItem(new Item(-75, 0, ''), true);
-	ItemFactory::registerItem(new Item(-76, 0, ''), true);
-	ItemFactory::registerItem(new Item(-77, 0, ''), true);
-	ItemFactory::registerItem(new Item(-78, 0, ''), true);
-	ItemFactory::registerItem(new Item(-79, 0, ''), true);
-	ItemFactory::registerItem(new Item(-80, 0, ''), true);
-	ItemFactory::registerItem(new Item(-81, 0, ''), true);
-	ItemFactory::registerItem(new Item(-82, 0, ''), true);
-	ItemFactory::registerItem(new Item(-83, 0, ''), true);
-	ItemFactory::registerItem(new Item(-84, 0, ''), true);
-	ItemFactory::registerItem(new Item(-85, 0, ''), true);
-	ItemFactory::registerItem(new Item(-86, 0, ''), true);
-	ItemFactory::registerItem(new Item(-87, 0, ''), true);
-	ItemFactory::registerItem(new Item(-88, 0, ''), true);
-	ItemFactory::registerItem(new Item(-89, 0, ''), true);
-	ItemFactory::registerItem(new Item(-90, 0, ''), true);
-	ItemFactory::registerItem(new Item(-91, 0, ''), true);
-	ItemFactory::registerItem(new Item(-92, 0, ''), true);
-	ItemFactory::registerItem(new Item(-93, 0, ''), true);
-	ItemFactory::registerItem(new Item(-94, 0, ''), true);
-	ItemFactory::registerItem(new Item(-95, 0, ''), true);
-	ItemFactory::registerItem(new Item(-96, 0, ''), true);
-	ItemFactory::registerItem(new Item(-97, 0, ''), true);
-	ItemFactory::registerItem(new Item(-98, 0, ''), true);
-	ItemFactory::registerItem(new Item(-99, 0, ''), true);
-	ItemFactory::registerItem(new Item(-100, 0, ''), true);
-	ItemFactory::registerItem(new Item(-101, 0, ''), true);
-	ItemFactory::registerItem(new Item(-102, 0, ''), true);
-	ItemFactory::registerItem(new Item(-103, 0, ''), true);
-	ItemFactory::registerItem(new Item(-104, 0, ''), true);
-	ItemFactory::registerItem(new Item(-105, 0, ''), true);
-	ItemFactory::registerItem(new Item(-106, 0, ''), true);
-	ItemFactory::registerItem(new Item(-107, 0, ''), true);
-	ItemFactory::registerItem(new Item(-108, 0, ''), true);
-	ItemFactory::registerItem(new Item(-109, 0, ''), true);
-	ItemFactory::registerItem(new Item(-110, 0, ''), true);
-	ItemFactory::registerItem(new Item(-111, 0, ''), true);
-	ItemFactory::registerItem(new Item(-112, 0, ''), true);
-	ItemFactory::registerItem(new Item(-113, 0, ''), true);
-	ItemFactory::registerItem(new Item(-114, 0, ''), true);
-	ItemFactory::registerItem(new Item(-115, 0, ''), true);
-	ItemFactory::registerItem(new Item(-116, 0, ''), true);
-	ItemFactory::registerItem(new Item(-117, 0, ''), true);
-	ItemFactory::registerItem(new Item(-118, 0, ''), true);
-	ItemFactory::registerItem(new Item(-119, 0, ''), true);
-	ItemFactory::registerItem(new Item(-120, 0, ''), true);
-	ItemFactory::registerItem(new Item(-121, 0, ''), true);
-	ItemFactory::registerItem(new Item(-122, 0, ''), true);
-	ItemFactory::registerItem(new Item(-123, 0, ''), true);
-	ItemFactory::registerItem(new Item(-124, 0, ''), true);
-	ItemFactory::registerItem(new Item(-125, 0, ''), true);
-	ItemFactory::registerItem(new Item(-126, 0, ''), true);
-	ItemFactory::registerItem(new Item(-127, 0, ''), true);
-	ItemFactory::registerItem(new Item(-128, 0, ''), true);
-	ItemFactory::registerItem(new Item(-129, 0, ''), true);
-
-	/* ELement End */
-
-		self::registerItem(new Shield()); /* 513 */
-
-		/*새로운 아이템 추가 작업 */
-
-		self::registerItem(new Shovel(Item::IRON_SHOVEL, 0, "Iron Shovel", TieredTool::TIER_IRON));
-		self::registerItem(new Pickaxe(Item::IRON_PICKAXE, 0, "Iron Pickaxe", TieredTool::TIER_IRON));
-		self::registerItem(new Axe(Item::IRON_AXE, 0, "Iron Axe", TieredTool::TIER_IRON));
-		self::registerItem(new FlintSteel());
-		self::registerItem(new Apple());
-		self::registerItem(new Bow());
-		self::registerItem(new Arrow());
-		self::registerItem(new Coal());
-		self::registerItem(new Item(Item::DIAMOND, 0, "Diamond"));
-		self::registerItem(new Item(Item::IRON_INGOT, 0, "Iron Ingot"));
-		self::registerItem(new Item(Item::GOLD_INGOT, 0, "Gold Ingot"));
-		self::registerItem(new Sword(Item::IRON_SWORD, 0, "Iron Sword", TieredTool::TIER_IRON));
-		self::registerItem(new Sword(Item::WOODEN_SWORD, 0, "Wooden Sword", TieredTool::TIER_WOODEN));
-		self::registerItem(new Shovel(Item::WOODEN_SHOVEL, 0, "Wooden Shovel", TieredTool::TIER_WOODEN));
-		self::registerItem(new Pickaxe(Item::WOODEN_PICKAXE, 0, "Wooden Pickaxe", TieredTool::TIER_WOODEN));
-		self::registerItem(new Axe(Item::WOODEN_AXE, 0, "Wooden Axe", TieredTool::TIER_WOODEN));
-		self::registerItem(new Sword(Item::STONE_SWORD, 0, "Stone Sword", TieredTool::TIER_STONE));
-		self::registerItem(new Shovel(Item::STONE_SHOVEL, 0, "Stone Shovel", TieredTool::TIER_STONE));
-		self::registerItem(new Pickaxe(Item::STONE_PICKAXE, 0, "Stone Pickaxe", TieredTool::TIER_STONE));
-		self::registerItem(new Axe(Item::STONE_AXE, 0, "Stone Axe", TieredTool::TIER_STONE));
-		self::registerItem(new Sword(Item::DIAMOND_SWORD, 0, "Diamond Sword", TieredTool::TIER_DIAMOND));
-		self::registerItem(new Shovel(Item::DIAMOND_SHOVEL, 0, "Diamond Shovel", TieredTool::TIER_DIAMOND));
-		self::registerItem(new Pickaxe(Item::DIAMOND_PICKAXE, 0, "Diamond Pickaxe", TieredTool::TIER_DIAMOND));
-		self::registerItem(new Axe(Item::DIAMOND_AXE, 0, "Diamond Axe", TieredTool::TIER_DIAMOND));
-		self::registerItem(new Stick());
-		self::registerItem(new Bowl());
-		self::registerItem(new MushroomStew());
-		self::registerItem(new Sword(Item::GOLDEN_SWORD, 0, "Gold Sword", TieredTool::TIER_GOLD));
-		self::registerItem(new Shovel(Item::GOLDEN_SHOVEL, 0, "Gold Shovel", TieredTool::TIER_GOLD));
-		self::registerItem(new Pickaxe(Item::GOLDEN_PICKAXE, 0, "Gold Pickaxe", TieredTool::TIER_GOLD));
-		self::registerItem(new Axe(Item::GOLDEN_AXE, 0, "Gold Axe", TieredTool::TIER_GOLD));
-		self::registerItem(new StringItem());
-		self::registerItem(new Item(Item::FEATHER, 0, "Feather"));
-		self::registerItem(new Item(Item::GUNPOWDER, 0, "Gunpowder"));
-		self::registerItem(new Hoe(Item::WOODEN_HOE, 0, "Wooden Hoe", TieredTool::TIER_WOODEN));
-		self::registerItem(new Hoe(Item::STONE_HOE, 0, "Stone Hoe", TieredTool::TIER_STONE));
-		self::registerItem(new Hoe(Item::IRON_HOE, 0, "Iron Hoe", TieredTool::TIER_IRON));
-		self::registerItem(new Hoe(Item::DIAMOND_HOE, 0, "Diamond Hoe", TieredTool::TIER_DIAMOND));
-		self::registerItem(new Hoe(Item::GOLDEN_HOE, 0, "Golden Hoe", TieredTool::TIER_GOLD));
-		self::registerItem(new WheatSeeds());
-		self::registerItem(new Item(Item::WHEAT, 0, "Wheat"));
-		self::registerItem(new Bread());
-		self::registerItem(new LeatherCap());
-		self::registerItem(new LeatherTunic());
-		self::registerItem(new LeatherPants());
-		self::registerItem(new LeatherBoots());
-		self::registerItem(new ChainHelmet());
-		self::registerItem(new ChainChestplate());
-		self::registerItem(new ChainLeggings());
-		self::registerItem(new ChainBoots());
-		self::registerItem(new IronHelmet());
-		self::registerItem(new IronChestplate());
-		self::registerItem(new IronLeggings());
-		self::registerItem(new IronBoots());
-		self::registerItem(new DiamondHelmet());
-		self::registerItem(new DiamondChestplate());
-		self::registerItem(new DiamondLeggings());
-		self::registerItem(new DiamondBoots());
-		self::registerItem(new GoldHelmet());
-		self::registerItem(new GoldChestplate());
-		self::registerItem(new GoldLeggings());
-		self::registerItem(new GoldBoots());
-		self::registerItem(new Item(Item::FLINT, 0, "Flint"));
-		self::registerItem(new RawPorkchop());
-		self::registerItem(new CookedPorkchop());
-		self::registerItem(new PaintingItem());
-		self::registerItem(new GoldenApple());
-		self::registerItem(new Sign());
-		self::registerItem(new ItemBlock(Block::OAK_DOOR_BLOCK, 0, Item::OAK_DOOR));
-		self::registerItem(new Bucket());
-
-		self::registerItem(new Minecart());
-		self::registerItem(new Saddle());
-		self::registerItem(new ItemBlock(Block::IRON_DOOR_BLOCK, 0, Item::IRON_DOOR));
-		self::registerItem(new Redstone());
-		self::registerItem(new Snowball());
-		self::registerItem(new Boat());
-		self::registerItem(new Item(Item::LEATHER, 0, "Leather"));
-		//TODO: KELP
-		self::registerItem(new Item(Item::BRICK, 0, "Brick"));
-		self::registerItem(new Item(Item::CLAY_BALL, 0, "Clay"));
-		self::registerItem(new ItemBlock(Block::SUGARCANE_BLOCK, 0, Item::SUGARCANE));
-		self::registerItem(new Item(Item::PAPER, 0, "Paper"));
-		self::registerItem(new Book());
-		self::registerItem(new Item(Item::SLIME_BALL, 0, "Slimeball"));
-		//TODO: CHEST_MINECART
-
-		self::registerItem(new Egg());
-		self::registerItem(new Compass());
-		self::registerItem(new FishingRod());
-		self::registerItem(new Clock());
-		self::registerItem(new Item(Item::GLOWSTONE_DUST, 0, "Glowstone Dust"));
-		self::registerItem(new RawFish());
-		self::registerItem(new CookedFish());
-		self::registerItem(new Dye());
-		self::registerItem(new Item(Item::BONE, 0, "Bone"));
-		self::registerItem(new Item(Item::SUGAR, 0, "Sugar"));
-		self::registerItem(new ItemBlock(Block::CAKE_BLOCK, 0, Item::CAKE));
-		self::registerItem(new Bed());
-		self::registerItem(new ItemBlock(Block::REPEATER_BLOCK, 0, Item::REPEATER));
-		self::registerItem(new Cookie());
-		self::registerItem(new Map());
-		self::registerItem(new Shears());
-		self::registerItem(new Melon());
-		self::registerItem(new PumpkinSeeds());
-		self::registerItem(new MelonSeeds());
-		self::registerItem(new RawBeef());
-		self::registerItem(new Steak());
-		self::registerItem(new RawChicken());
-		self::registerItem(new CookedChicken());
-		self::registerItem(new RottenFlesh());
-		self::registerItem(new EnderPearl());
-		self::registerItem(new BlazeRod());
-		self::registerItem(new Item(Item::GHAST_TEAR, 0, "Ghast Tear"));
-		self::registerItem(new Item(Item::GOLD_NUGGET, 0, "Gold Nugget"));
-		self::registerItem(new ItemBlock(Block::NETHER_WART_PLANT, 0, Item::NETHER_WART));
-		self::registerItem(new Potion());
-		self::registerItem(new GlassBottle());
-		self::registerItem(new SpiderEye());
-		self::registerItem(new Item(Item::FERMENTED_SPIDER_EYE, 0, "Fermented Spider Eye"));
-		self::registerItem(new Item(Item::BLAZE_POWDER, 0, "Blaze Powder"));
-		self::registerItem(new Item(Item::MAGMA_CREAM, 0, "Magma Cream"));
-		self::registerItem(new ItemBlock(Block::BREWING_STAND_BLOCK, 0, Item::BREWING_STAND));
-		self::registerItem(new ItemBlock(Block::CAULDRON_BLOCK, 0, Item::CAULDRON));
-		//TODO: ENDER_EYE
-		self::registerItem(new Item(Item::GLISTERING_MELON, 0, "Glistering Melon"));
-		self::registerItem(new SpawnEgg());
-		self::registerItem(new ExperienceBottle());
-		//TODO: FIREBALL
-		self::registerItem(new WritableBook());
-		self::registerItem(new WrittenBook());
-		self::registerItem(new Item(Item::EMERALD, 0, "Emerald"));
-		self::registerItem(new ItemBlock(Block::ITEM_FRAME_BLOCK, 0, Item::ITEM_FRAME));
-		self::registerItem(new ItemBlock(Block::FLOWER_POT_BLOCK, 0, Item::FLOWER_POT));
-		self::registerItem(new Carrot());
-		self::registerItem(new Potato());
-		self::registerItem(new BakedPotato());
-		self::registerItem(new PoisonousPotato());
-		self::registerItem(new EmptyMap());
-		self::registerItem(new GoldenCarrot());
-		self::registerItem(new ItemBlock(Block::SKULL_BLOCK, 0, Item::SKULL));
-		//TODO: CARROTONASTICK
-		self::registerItem(new Item(Item::NETHER_STAR, 0, "Nether Star"));
-		self::registerItem(new PumpkinPie());
-		self::registerItem(new Fireworks());
-		//TODO: FIREWORKSCHARGE
-		self::registerItem(new EnchantedBook());
-		self::registerItem(new ItemBlock(Block::COMPARATOR_BLOCK, 0, Item::COMPARATOR));
-		self::registerItem(new Item(Item::NETHER_BRICK, 0, "Nether Brick"));
-		self::registerItem(new Item(Item::NETHER_QUARTZ, 0, "Nether Quartz"));
-		//TODO: MINECART_WITH_TNT
-		//TODO: HOPPER_MINECART
-		self::registerItem(new Item(Item::PRISMARINE_SHARD, 0, "Prismarine Shard"));
-		self::registerItem(new ItemBlock(Block::HOPPER_BLOCK, 0, Item::HOPPER));
-		self::registerItem(new RawRabbit());
-		self::registerItem(new CookedRabbit());
-		self::registerItem(new RabbitStew());
-		self::registerItem(new Item(Item::RABBIT_FOOT, 0, "Rabbit's Foot"));
-		self::registerItem(new Item(Item::RABBIT_HIDE, 0, "Rabbit Hide"));
-		//TODO: HORSEARMORLEATHER
-		//TODO: HORSEARMORIRON
-		//TODO: GOLD_HORSE_ARMOR
-		//TODO: DIAMOND_HORSE_ARMOR
-		self::registerItem(new Item(Item::LEAD, 0, "Lead"));
-		//TODO: NAMETAG
-		self::registerItem(new Item(Item::PRISMARINE_CRYSTALS, 0, "Prismarine Crystals"));
-		self::registerItem(new RawMutton());
-		self::registerItem(new CookedMutton());
-		self::registerItem(new ArmorStand());
-		//TODO: END_CRYSTAL
-		self::registerItem(new ItemBlock(Block::SPRUCE_DOOR_BLOCK, 0, Item::SPRUCE_DOOR));
-		self::registerItem(new ItemBlock(Block::BIRCH_DOOR_BLOCK, 0, Item::BIRCH_DOOR));
-		self::registerItem(new ItemBlock(Block::JUNGLE_DOOR_BLOCK, 0, Item::JUNGLE_DOOR));
-		self::registerItem(new ItemBlock(Block::ACACIA_DOOR_BLOCK, 0, Item::ACACIA_DOOR));
-		self::registerItem(new ItemBlock(Block::DARK_OAK_DOOR_BLOCK, 0, Item::DARK_OAK_DOOR));
-		self::registerItem(new ChorusFruit());
-		self::registerItem(new Item(Item::CHORUS_FRUIT_POPPED, 0, "Popped Chorus Fruit"));
-
-		self::registerItem(new Item(Item::DRAGON_BREATH, 0, "Dragon's Breath"));
-		self::registerItem(new SplashPotion());
-
-		//TODO: LINGERING_POTION
-		//TODO: SPARKLER
-		//TODO: COMMAND_BLOCK_MINECART
-		self::registerItem(new Elytra());
-		self::registerItem(new Item(Item::SHULKER_SHELL, 0, "Shulker Shell"));
-		self::registerItem(new Banner());
-		//TODO: MEDICINE
-		//TODO: BALLOON
-		//TODO: RAPID_FERTILIZER
-		self::registerItem(new Totem());
-		self::registerItem(new Item(Item::BLEACH, 0, "Bleach")); //EDU
-		self::registerItem(new Item(Item::IRON_NUGGET, 0, "Iron Nugget"));
-		//TODO: ICE_BOMB
-
-		//TODO: TRIDENT
-
-		self::registerItem(new Beetroot());
-		self::registerItem(new BeetrootSeeds());
-		self::registerItem(new BeetrootSoup());
-		self::registerItem(new RawSalmon());
-		self::registerItem(new Clownfish());
-		self::registerItem(new Pufferfish());
-		self::registerItem(new CookedSalmon());
-		self::registerItem(new DriedKelp());
-		self::registerItem(new Item(Item::NAUTILUS_SHELL, 0, "Nautilus Shell"));
-		self::registerItem(new GoldenAppleEnchanted());
-		self::registerItem(new Item(Item::HEART_OF_THE_SEA, 0, "Heart of the Sea"));
-		self::registerItem(new Item(Item::TURTLE_SHELL_PIECE, 0, "Scute"));
-		//TODO: TURTLE_HELMET
-
-		self::registerItem(new Record(Item::RECORD_13, LevelSoundEventPacket::SOUND_RECORD_13));
-		self::registerItem(new Record(Item::RECORD_CAT, LevelSoundEventPacket::SOUND_RECORD_CAT));
-		self::registerItem(new Record(Item::RECORD_BLOCKS, LevelSoundEventPacket::SOUND_RECORD_BLOCKS));
-		self::registerItem(new Record(Item::RECORD_CHIRP, LevelSoundEventPacket::SOUND_RECORD_CHIRP));
-		self::registerItem(new Record(Item::RECORD_FAR, LevelSoundEventPacket::SOUND_RECORD_FAR));
-		self::registerItem(new Record(Item::RECORD_MALL, LevelSoundEventPacket::SOUND_RECORD_MALL));
-		self::registerItem(new Record(Item::RECORD_MELLOHI, LevelSoundEventPacket::SOUND_RECORD_MELLOHI));
-		self::registerItem(new Record(Item::RECORD_STAL, LevelSoundEventPacket::SOUND_RECORD_STAL));
-		self::registerItem(new Record(Item::RECORD_STRAD, LevelSoundEventPacket::SOUND_RECORD_STRAD));
-		self::registerItem(new Record(Item::RECORD_WARD, LevelSoundEventPacket::SOUND_RECORD_WARD));
-		self::registerItem(new Record(Item::RECORD_11, LevelSoundEventPacket::SOUND_RECORD_11));
-		self::registerItem(new Record(Item::RECORD_WAIT, LevelSoundEventPacket::SOUND_RECORD_WAIT));
+		//region --- auto-generated TODOs ---
+		//TODO: minecraft:armor_stand
+		//TODO: minecraft:balloon
+		//TODO: minecraft:banner_pattern
+		//TODO: minecraft:campfire
+		//TODO: minecraft:carrotOnAStick
+		//TODO: minecraft:chest_minecart
+		//TODO: minecraft:command_block_minecart
+		//TODO: minecraft:crossbow
+		//TODO: minecraft:elytra
+		//TODO: minecraft:emptyMap
+		//TODO: minecraft:enchanted_book
+		//TODO: minecraft:end_crystal
+		//TODO: minecraft:ender_eye
+		//TODO: minecraft:fireball
+		//TODO: minecraft:fireworks
+		//TODO: minecraft:fireworksCharge
+		//TODO: minecraft:glow_stick
+		//TODO: minecraft:hopper_minecart
+		//TODO: minecraft:horsearmordiamond
+		//TODO: minecraft:horsearmorgold
+		//TODO: minecraft:horsearmoriron
+		//TODO: minecraft:horsearmorleather
+		//TODO: minecraft:ice_bomb
+		//TODO: minecraft:kelp
+		//TODO: minecraft:lead
+		//TODO: minecraft:lingering_potion
+		//TODO: minecraft:map
+		//TODO: minecraft:medicine
+		//TODO: minecraft:name_tag
+		//TODO: minecraft:phantom_membrane
+		//TODO: minecraft:rapid_fertilizer
+		//TODO: minecraft:record_11
+		//TODO: minecraft:record_13
+		//TODO: minecraft:record_blocks
+		//TODO: minecraft:record_cat
+		//TODO: minecraft:record_chirp
+		//TODO: minecraft:record_far
+		//TODO: minecraft:record_mall
+		//TODO: minecraft:record_mellohi
+		//TODO: minecraft:record_stal
+		//TODO: minecraft:record_strad
+		//TODO: minecraft:record_wait
+		//TODO: minecraft:record_ward
+		//TODO: minecraft:saddle
+		//TODO: minecraft:shield
+		//TODO: minecraft:sparkler
+		//TODO: minecraft:spawn_egg
+		//TODO: minecraft:sweet_berries
+		//TODO: minecraft:tnt_minecart
+		//TODO: minecraft:trident
+		//TODO: minecraft:turtle_helmet
+		//endregion
 	}
 
 	/**
@@ -597,118 +375,121 @@ ItemFactory::registerItem(new Item(-211, 0, ''), true);
 	 * @throws \RuntimeException if something attempted to override an already-registered item without specifying the
 	 * $override parameter.
 	 */
-	public static function registerItem(Item $item, bool $override = false){
+	public static function register(Item $item, bool $override = false) : void{
 		$id = $item->getId();
-		if(!$override and self::isRegistered($id)){
-			throw new \RuntimeException("Trying to overwrite an already registered item $id");
+		$variant = $item->getMeta();
+
+		if(!$override and self::isRegistered($id, $variant)){
+			throw new \RuntimeException("Trying to overwrite an already registered item");
 		}
 
-		self::$list[self::getListOffset($id)] = clone $item;
+		self::$list[self::getListOffset($id, $variant)] = clone $item;
 	}
 
 	/**
 	 * Returns an instance of the Item with the specified id, meta, count and NBT.
 	 *
-	 * @param int                     $id
-	 * @param int                     $meta
-	 * @param int                     $count
-	 * @param CompoundTag|string|null $tags
+	 * @param int              $id
+	 * @param int              $meta
+	 * @param int              $count
+	 * @param CompoundTag|null $tags
 	 *
 	 * @return Item
-	 * @throws \TypeError
+	 * @throws \InvalidArgumentException
 	 */
-	public static function get(int $id, int $meta = 0, int $count = 1, $tags = null) : Item{
-		if(!is_string($tags) and !($tags instanceof CompoundTag) and $tags !== null){
-			throw new \TypeError("`tags` argument must be a string or CompoundTag instance, " . (is_object($tags) ? "instance of " . get_class($tags) : gettype($tags)) . " given");
-		}
-
-		try{
-			/** @var Item|null $listed */
-			$listed = self::$list[self::getListOffset($id)];
-			if($listed !== null){
-				$item = clone $listed;
-			}elseif($id >= 0 and $id < 256){ //intentionally excludes negatives because extended blocks aren't supported yet
-				/* Blocks must have a damage value 0-15, but items can have damage value -1 to indicate that they are
-				 * crafting ingredients with any-damage. */
+	public static function get(int $id, int $meta = 0, int $count = 1, ?CompoundTag $tags = null) : Item{
+		/** @var Item $item */
+		$item = null;
+		if($meta !== -1){
+			if(isset(self::$list[$offset = self::getListOffset($id, $meta)])){
+				$item = clone self::$list[$offset];
+			}elseif(isset(self::$list[$zero = self::getListOffset($id, 0)]) and self::$list[$zero] instanceof Durable){
+				/** @var Durable $item */
+				$item = clone self::$list[$zero];
+				$item->setDamage($meta);
+			}elseif($id < 256){ //intentionally includes negatives, for extended block IDs
 				$item = new ItemBlock($id, $meta);
-			}else{
-				$item = new Item($id, $meta);
 			}
-		}catch(\RuntimeException $e){
-			throw new \InvalidArgumentException("Item ID $id is invalid or out of bounds");
 		}
 
-		$item->setDamage($meta);
+		if($item === null){
+			//negative damage values will fallthru to here, to avoid crazy shit with crafting wildcard hacks
+			$item = new Item($id, $meta);
+		}
+
 		$item->setCount($count);
-		$item->setCompoundTag($tags);
+		if($tags !== null){
+			$item->setNamedTag($tags);
+		}
 		return $item;
 	}
 
 	/**
-	 * Tries to parse the specified string into Item ID/meta identifiers, and returns Item instances it created.
+	 * Tries to parse the specified string into Item types.
 	 *
 	 * Example accepted formats:
 	 * - `diamond_pickaxe:5`
 	 * - `minecraft:string`
 	 * - `351:4 (lapis lazuli ID:meta)`
 	 *
-	 * If multiple item instances are to be created, their identifiers must be comma-separated, for example:
-	 * `diamond_pickaxe,wooden_shovel:18,iron_ingot`
-	 *
 	 * @param string $str
-	 * @param bool   $multiple
 	 *
-	 * @return Item[]|Item
+	 * @return Item
 	 *
 	 * @throws \InvalidArgumentException if the given string cannot be parsed as an item identifier
 	 */
-	public static function fromString(string $str, bool $multiple = false){
-		if($multiple){
-			$blocks = [];
-			foreach(explode(",", $str) as $b){
-				$blocks[] = self::fromString($b, false);
-			}
-
-			return $blocks;
+	public static function fromString(string $str) : Item{
+		$b = explode(":", str_replace([" ", "minecraft:"], ["_", ""], trim($str)));
+		if(!isset($b[1])){
+			$meta = 0;
+		}elseif(is_numeric($b[1])){
+			$meta = (int) $b[1];
 		}else{
-			$b = explode(":", str_replace([" ", "minecraft:"], ["_", ""], trim($str)));
-			if(!isset($b[1])){
-				$meta = 0;
-			}elseif(is_numeric($b[1])){
-				$meta = (int) $b[1];
-			}else{
-				throw new \InvalidArgumentException("Unable to parse \"" . $b[1] . "\" from \"" . $str . "\" as a valid meta value");
-			}
-
-			if(is_numeric($b[0])){
-				$item = self::get((int) $b[0], $meta);
-			}elseif(defined(ItemIds::class . "::" . strtoupper($b[0]))){
-				$item = self::get(constant(ItemIds::class . "::" . strtoupper($b[0])), $meta);
-			}else{
-				throw new \InvalidArgumentException("Unable to resolve \"" . $str . "\" to a valid item");
-			}
-
-			return $item;
+			throw new \InvalidArgumentException("Unable to parse \"" . $b[1] . "\" from \"" . $str . "\" as a valid meta value");
 		}
+
+		if(is_numeric($b[0])){
+			$item = self::get((int) $b[0], $meta);
+		}elseif(defined(ItemIds::class . "::" . strtoupper($b[0]))){
+			$item = self::get(constant(ItemIds::class . "::" . strtoupper($b[0])), $meta);
+		}else{
+			throw new \InvalidArgumentException("Unable to resolve \"" . $str . "\" to a valid item");
+		}
+
+		return $item;
+	}
+
+	public static function air() : Item{
+		return self::$air ?? (self::$air = self::get(ItemIds::AIR, 0, 0));
 	}
 
 	/**
 	 * Returns whether the specified item ID is already registered in the item factory.
 	 *
 	 * @param int $id
+	 * @param int $variant
+	 *
 	 * @return bool
 	 */
-	public static function isRegistered(int $id) : bool{
+	public static function isRegistered(int $id, int $variant = 0) : bool{
 		if($id < 256){
 			return BlockFactory::isRegistered($id);
 		}
-		return self::$list[self::getListOffset($id)] !== null;
+
+		return isset(self::$list[self::getListOffset($id, $variant)]);
 	}
 
-	private static function getListOffset(int $id) : int{
+	private static function getListOffset(int $id, int $variant) : int{
 		if($id < -0x8000 or $id > 0x7fff){
 			throw new \InvalidArgumentException("ID must be in range " . -0x8000 . " - " . 0x7fff);
 		}
-		return $id & 0xffff;
+		return (($id & 0xffff) << 16) | ($variant & 0xffff);
+	}
+
+	/**
+	 * @return Item[]
+	 */
+	public static function getAllRegistered() : array{
+		return self::$list;
 	}
 }

@@ -23,11 +23,12 @@ declare(strict_types=1);
 
 namespace pocketmine\timings;
 
+use pocketmine\block\tile\Tile;
 use pocketmine\entity\Entity;
-use pocketmine\network\mcpe\protocol\DataPacket;
-use pocketmine\Player;
+use pocketmine\network\mcpe\protocol\ClientboundPacket;
+use pocketmine\network\mcpe\protocol\ServerboundPacket;
+use pocketmine\player\Player;
 use pocketmine\scheduler\TaskHandler;
-use pocketmine\tile\Tile;
 use function dechex;
 
 abstract class Timings{
@@ -43,9 +44,17 @@ abstract class Timings{
 	/** @var TimingsHandler */
 	public static $titleTickTimer;
 	/** @var TimingsHandler */
-	public static $playerNetworkTimer;
+	public static $playerNetworkSendTimer;
+	/** @var TimingsHandler */
+	public static $playerNetworkSendCompressTimer;
+	/** @var TimingsHandler */
+	public static $playerNetworkSendEncryptTimer;
 	/** @var TimingsHandler */
 	public static $playerNetworkReceiveTimer;
+	/** @var TimingsHandler */
+	public static $playerNetworkReceiveDecompressTimer;
+	/** @var TimingsHandler */
+	public static $playerNetworkReceiveDecryptTimer;
 	/** @var TimingsHandler */
 	public static $playerChunkOrderTimer;
 	/** @var TimingsHandler */
@@ -103,7 +112,7 @@ abstract class Timings{
 	/** @var TimingsHandler[] */
 	public static $pluginTaskTimingMap = [];
 
-	public static function init(){
+	public static function init() : void{
 		if(self::$serverTickTimer instanceof TimingsHandler){
 			return;
 		}
@@ -113,8 +122,15 @@ abstract class Timings{
 		self::$memoryManagerTimer = new TimingsHandler("Memory Manager");
 		self::$garbageCollectorTimer = new TimingsHandler("Garbage Collector", self::$memoryManagerTimer);
 		self::$titleTickTimer = new TimingsHandler("Console Title Tick");
-		self::$playerNetworkTimer = new TimingsHandler("Player Network Send");
+
+		self::$playerNetworkSendTimer = new TimingsHandler("Player Network Send");
+		self::$playerNetworkSendCompressTimer = new TimingsHandler("** Player Network Send - Compression", self::$playerNetworkSendTimer);
+		self::$playerNetworkSendEncryptTimer = new TimingsHandler("** Player Network Send - Encryption", self::$playerNetworkSendTimer);
+
 		self::$playerNetworkReceiveTimer = new TimingsHandler("Player Network Receive");
+		self::$playerNetworkReceiveDecompressTimer = new TimingsHandler("** Player Network Receive - Decompression", self::$playerNetworkReceiveTimer);
+		self::$playerNetworkReceiveDecryptTimer = new TimingsHandler("** Player Network Receive - Decryption", self::$playerNetworkReceiveTimer);
+
 		self::$playerChunkOrderTimer = new TimingsHandler("Player Order Chunks");
 		self::$playerChunkSendTimer = new TimingsHandler("Player Send Chunks");
 		self::$connectionTimer = new TimingsHandler("Connection Handler");
@@ -197,31 +213,33 @@ abstract class Timings{
 	}
 
 	/**
-	 * @param DataPacket $pk
+	 * @param ServerboundPacket $pk
 	 *
 	 * @return TimingsHandler
 	 */
-	public static function getReceiveDataPacketTimings(DataPacket $pk) : TimingsHandler{
-		if(!isset(self::$packetReceiveTimingMap[$pk::NETWORK_ID])){
+	public static function getReceiveDataPacketTimings(ServerboundPacket $pk) : TimingsHandler{
+		$pid = $pk->pid();
+		if(!isset(self::$packetReceiveTimingMap[$pid])){
 			$pkName = (new \ReflectionClass($pk))->getShortName();
-			self::$packetReceiveTimingMap[$pk::NETWORK_ID] = new TimingsHandler("** receivePacket - " . $pkName . " [0x" . dechex($pk::NETWORK_ID) . "]", self::$playerNetworkReceiveTimer);
+			self::$packetReceiveTimingMap[$pid] = new TimingsHandler("** receivePacket - " . $pkName . " [0x" . dechex($pid) . "]", self::$playerNetworkReceiveTimer);
 		}
 
-		return self::$packetReceiveTimingMap[$pk::NETWORK_ID];
+		return self::$packetReceiveTimingMap[$pid];
 	}
 
 
 	/**
-	 * @param DataPacket $pk
+	 * @param ClientboundPacket $pk
 	 *
 	 * @return TimingsHandler
 	 */
-	public static function getSendDataPacketTimings(DataPacket $pk) : TimingsHandler{
-		if(!isset(self::$packetSendTimingMap[$pk::NETWORK_ID])){
+	public static function getSendDataPacketTimings(ClientboundPacket $pk) : TimingsHandler{
+		$pid = $pk->pid();
+		if(!isset(self::$packetSendTimingMap[$pid])){
 			$pkName = (new \ReflectionClass($pk))->getShortName();
-			self::$packetSendTimingMap[$pk::NETWORK_ID] = new TimingsHandler("** sendPacket - " . $pkName . " [0x" . dechex($pk::NETWORK_ID) . "]", self::$playerNetworkTimer);
+			self::$packetSendTimingMap[$pid] = new TimingsHandler("** sendPacket - " . $pkName . " [0x" . dechex($pid) . "]", self::$playerNetworkSendTimer);
 		}
 
-		return self::$packetSendTimingMap[$pk::NETWORK_ID];
+		return self::$packetSendTimingMap[$pid];
 	}
 }

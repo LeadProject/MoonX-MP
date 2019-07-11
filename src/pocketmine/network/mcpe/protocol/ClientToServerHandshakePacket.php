@@ -26,24 +26,24 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class ClientToServerHandshakePacket extends DataPacket{
+class ClientToServerHandshakePacket extends DataPacket implements ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::CLIENT_TO_SERVER_HANDSHAKE_PACKET;
 
 	public function canBeSentBeforeLogin() : bool{
 		return true;
 	}
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		//No payload
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		//No payload
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleClientToServerHandshake($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleClientToServerHandshake($this);
 	}
 }

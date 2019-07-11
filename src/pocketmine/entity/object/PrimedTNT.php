@@ -27,9 +27,12 @@ use pocketmine\entity\Entity;
 use pocketmine\entity\Explosive;
 use pocketmine\event\entity\EntityDamageEvent;
 use pocketmine\event\entity\ExplosionPrimeEvent;
-use pocketmine\level\Explosion;
+use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\ShortTag;
-use pocketmine\network\mcpe\protocol\LevelEventPacket;
+use pocketmine\network\mcpe\protocol\types\EntityMetadataFlags;
+use pocketmine\network\mcpe\protocol\types\EntityMetadataProperties;
+use pocketmine\world\Explosion;
+use pocketmine\world\sound\IgniteSound;
 
 class PrimedTNT extends Entity implements Explosive{
 	public const NETWORK_ID = self::TNT;
@@ -53,19 +56,19 @@ class PrimedTNT extends Entity implements Explosive{
 		}
 	}
 
-	protected function initEntity() : void{
-		parent::initEntity();
+	protected function initEntity(CompoundTag $nbt) : void{
+		parent::initEntity($nbt);
 
-		if($this->namedtag->hasTag("Fuse", ShortTag::class)){
-			$this->fuse = $this->namedtag->getShort("Fuse");
+		if($nbt->hasTag("Fuse", ShortTag::class)){
+			$this->fuse = $nbt->getShort("Fuse");
 		}else{
 			$this->fuse = 80;
 		}
 
-		$this->setGenericFlag(self::DATA_FLAG_IGNITED, true);
-		$this->propertyManager->setInt(self::DATA_FUSE_LENGTH, $this->fuse);
+		$this->setGenericFlag(EntityMetadataFlags::IGNITED, true);
+		$this->propertyManager->setInt(EntityMetadataProperties::FUSE_LENGTH, $this->fuse);
 
-		$this->level->broadcastLevelEvent($this, LevelEventPacket::EVENT_SOUND_IGNITE);
+		$this->world->addSound($this, new IgniteSound());
 	}
 
 
@@ -73,12 +76,14 @@ class PrimedTNT extends Entity implements Explosive{
 		return false;
 	}
 
-	public function saveNBT() : void{
-		parent::saveNBT();
-		$this->namedtag->setShort("Fuse", $this->fuse, true); //older versions incorrectly saved this as a byte
+	public function saveNBT() : CompoundTag{
+		$nbt = parent::saveNBT();
+		$nbt->setShort("Fuse", $this->fuse);
+
+		return $nbt;
 	}
 
-	public function entityBaseTick(int $tickDiff = 1) : bool{
+	protected function entityBaseTick(int $tickDiff = 1) : bool{
 		if($this->closed){
 			return false;
 		}
@@ -86,7 +91,7 @@ class PrimedTNT extends Entity implements Explosive{
 		$hasUpdate = parent::entityBaseTick($tickDiff);
 
 		if($this->fuse % 5 === 0){ //don't spam it every tick, it's not necessary
-			$this->propertyManager->setInt(self::DATA_FUSE_LENGTH, $this->fuse);
+			$this->propertyManager->setInt(EntityMetadataProperties::FUSE_LENGTH, $this->fuse);
 		}
 
 		if(!$this->isFlaggedForDespawn()){

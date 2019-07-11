@@ -27,9 +27,9 @@ namespace pocketmine\network\mcpe\protocol;
 
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class MoveEntityAbsolutePacket extends DataPacket{
+class MoveEntityAbsolutePacket extends DataPacket implements ClientboundPacket, ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::MOVE_ENTITY_ABSOLUTE_PACKET;
 
 	public const FLAG_GROUND = 0x01;
@@ -48,7 +48,7 @@ class MoveEntityAbsolutePacket extends DataPacket{
 	/** @var float */
 	public $zRot;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->entityRuntimeId = $this->getEntityRuntimeId();
 		$this->flags = $this->getByte();
 		$this->position = $this->getVector3();
@@ -57,7 +57,7 @@ class MoveEntityAbsolutePacket extends DataPacket{
 		$this->zRot = $this->getByteRotation();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putEntityRuntimeId($this->entityRuntimeId);
 		$this->putByte($this->flags);
 		$this->putVector3($this->position);
@@ -66,7 +66,7 @@ class MoveEntityAbsolutePacket extends DataPacket{
 		$this->putByteRotation($this->zRot);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleMoveEntityAbsolute($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleMoveEntityAbsolute($this);
 	}
 }

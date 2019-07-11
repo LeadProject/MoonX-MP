@@ -23,16 +23,86 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\tile\Furnace as TileFurnace;
+use pocketmine\block\utils\BlockDataValidator;
+use pocketmine\item\Item;
+use pocketmine\item\TieredTool;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
+use pocketmine\player\Player;
+use pocketmine\world\BlockTransaction;
 
-class Furnace extends BurningFurnace{
+class Furnace extends Solid{
+	/** @var BlockIdentifierFlattened */
+	protected $idInfo;
 
-	protected $id = self::FURNACE;
+	/** @var int */
+	protected $facing = Facing::NORTH;
+	/** @var bool */
+	protected $lit = false; //this is set based on the blockID
 
-	public function getName() : string{
-		return "Furnace";
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(3.5, BlockToolType::PICKAXE, TieredTool::TIER_WOODEN));
+	}
+
+	public function getId() : int{
+		return $this->lit ? $this->idInfo->getSecondId() : parent::getId();
+	}
+
+	protected function writeStateToMeta() : int{
+		return $this->facing;
+	}
+
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->facing = BlockDataValidator::readHorizontalFacing($stateMeta);
+		$this->lit = $id === $this->idInfo->getSecondId();
+	}
+
+	public function getStateBitmask() : int{
+		return 0b111;
 	}
 
 	public function getLightLevel() : int{
-		return 0;
+		return $this->lit ? 13 : 0;
+	}
+
+	public function isLit() : bool{
+		return $this->lit;
+	}
+
+	/**
+	 * @param bool $lit
+	 *
+	 * @return $this
+	 */
+	public function setLit(bool $lit = true) : self{
+		$this->lit = $lit;
+		return $this;
+	}
+
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		if($player !== null){
+			$this->facing = Facing::opposite($player->getHorizontalFacing());
+		}
+
+		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+	}
+
+	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		if($player instanceof Player){
+			$furnace = $this->getWorld()->getTile($this);
+			if($furnace instanceof TileFurnace and $furnace->canOpenWith($item->getCustomName())){
+				$player->setCurrentWindow($furnace->getInventory());
+			}
+		}
+
+		return true;
+	}
+
+	public function onScheduledUpdate() : void{
+		$furnace = $this->getWorld()->getTile($this);
+		if($furnace instanceof TileFurnace and $furnace->onUpdate()){
+			$this->world->scheduleDelayedBlockUpdate($this, 1); //TODO: check this
+		}
 	}
 }

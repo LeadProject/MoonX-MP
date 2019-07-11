@@ -25,17 +25,15 @@ namespace pocketmine\block;
 
 class WoodenButton extends Button{
 
-	protected $id = self::WOODEN_BUTTON;
-
-	public function getName() : string{
-		return "Wooden Button";
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.5, BlockToolType::AXE));
 	}
 
-	public function getHardness() : float{
-		return 0.5;
+	protected function getActivationTime() : int{
+		return 30;
 	}
 
-	public function getToolType() : int{
-		return BlockToolType::TYPE_AXE;
+	public function hasEntityCollision() : bool{
+		return false; //TODO: arrows activate wooden buttons
 	}
 }

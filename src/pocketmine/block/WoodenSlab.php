@@ -25,30 +25,8 @@ namespace pocketmine\block;
 
 class WoodenSlab extends Slab{
 
-	protected $id = self::WOODEN_SLAB;
-
-	public function getDoubleSlabId() : int{
-		return self::DOUBLE_WOODEN_SLAB;
-	}
-
-	public function getHardness() : float{
-		return 2;
-	}
-
-	public function getName() : string{
-		static $names = [
-			0 => "Oak",
-			1 => "Spruce",
-			2 => "Birch",
-			3 => "Jungle",
-			4 => "Acacia",
-			5 => "Dark Oak"
-		];
-		return (($this->meta & 0x08) === 0x08 ? "Upper " : "") . ($names[$this->getVariant()] ?? "") . " Wooden Slab";
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_AXE;
+	public function __construct(BlockIdentifierFlattened $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(2.0, BlockToolType::AXE, 0, 15.0));
 	}
 
 	public function getFuelTime() : int{

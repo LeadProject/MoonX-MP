@@ -23,110 +23,87 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\tile\Chest as TileChest;
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
 use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
-use pocketmine\Player;
-use pocketmine\tile\Chest as TileChest;
-use pocketmine\tile\Tile;
+use pocketmine\player\Player;
+use pocketmine\world\BlockTransaction;
 
 class Chest extends Transparent{
 
-	protected $id = self::CHEST;
+	/** @var int */
+	protected $facing = Facing::NORTH;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(2.5, BlockToolType::AXE));
 	}
 
-	public function getHardness() : float{
-		return 2.5;
+	protected function writeStateToMeta() : int{
+		return $this->facing;
 	}
 
-	public function getName() : string{
-		return "Chest";
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->facing = BlockDataValidator::readHorizontalFacing($stateMeta);
 	}
 
-	public function getToolType() : int{
-		return BlockToolType::TYPE_AXE;
+	public function getStateBitmask() : int{
+		return 0b111;
 	}
 
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
 		//these are slightly bigger than in PC
-		return new AxisAlignedBB(
-			$this->x + 0.025,
-			$this->y,
-			$this->z + 0.025,
-			$this->x + 0.975,
-			$this->y + 0.95,
-			$this->z + 0.975
-		);
+		return AxisAlignedBB::one()->contract(0.025, 0, 0.025)->trim(Facing::UP, 0.05);
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		$faces = [
-			0 => 4,
-			1 => 2,
-			2 => 5,
-			3 => 3
-		];
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		if($player !== null){
+			$this->facing = Facing::opposite($player->getHorizontalFacing());
+		}
 
-		$chest = null;
-		$this->meta = $faces[$player instanceof Player ? $player->getDirection() : 0];
+		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+	}
 
-		for($side = 2; $side <= 5; ++$side){
-			if(($this->meta === 4 or $this->meta === 5) and ($side === 4 or $side === 5)){
-				continue;
-			}elseif(($this->meta === 3 or $this->meta === 2) and ($side === 2 or $side === 3)){
-				continue;
-			}
-			$c = $this->getSide($side);
-			if($c->getId() === $this->id and $c->getDamage() === $this->meta){
-				$tile = $this->getLevel()->getTile($c);
-				if($tile instanceof TileChest and !$tile->isPaired()){
-					$chest = $tile;
-					break;
+	public function onPostPlace() : void{
+		$tile = $this->world->getTile($this);
+		if($tile instanceof TileChest){
+			foreach([
+				Facing::rotateY($this->facing, true),
+				Facing::rotateY($this->facing, false)
+			] as $side){
+				$c = $this->getSide($side);
+				if($c instanceof Chest and $c->isSameType($this) and $c->facing === $this->facing){
+					$pair = $this->world->getTile($c);
+					if($pair instanceof TileChest and !$pair->isPaired()){
+						$pair->pairWith($tile);
+						$tile->pairWith($pair);
+						break;
+					}
 				}
 			}
 		}
-
-		$this->getLevel()->setBlock($blockReplace, $this, true, true);
-		$tile = Tile::createTile(Tile::CHEST, $this->getLevel(), TileChest::createNBT($this, $face, $item, $player));
-
-		if($chest instanceof TileChest and $tile instanceof TileChest){
-			$chest->pairWith($tile);
-			$tile->pairWith($chest);
-		}
-
-		return true;
 	}
 
-	public function onActivate(Item $item, Player $player = null) : bool{
+	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($player instanceof Player){
 
-			$t = $this->getLevel()->getTile($this);
-			$chest = null;
-			if($t instanceof TileChest){
-				$chest = $t;
-			}else{
-				$chest = Tile::createTile(Tile::CHEST, $this->getLevel(), TileChest::createNBT($this));
-			}
+			$chest = $this->getWorld()->getTile($this);
+			if($chest instanceof TileChest){
+				if(
+					!$this->getSide(Facing::UP)->isTransparent() or
+					($chest->isPaired() and !$chest->getPair()->getBlock()->getSide(Facing::UP)->isTransparent()) or
+					!$chest->canOpenWith($item->getCustomName())
+				){
+					return true;
+				}
 
-			if(
-				!$this->getSide(Vector3::SIDE_UP)->isTransparent() or
-				($chest->isPaired() and !$chest->getPair()->getBlock()->getSide(Vector3::SIDE_UP)->isTransparent()) or
-				!$chest->canOpenWith($item->getCustomName())
-			){
-				return true;
+				$player->setCurrentWindow($chest->getInventory());
 			}
-
-			$player->addWindow($chest->getInventory());
 		}
 
 		return true;
-	}
-
-	public function getVariantBitmask() : int{
-		return 0;
 	}
 
 	public function getFuelTime() : int{

@@ -27,25 +27,7 @@ use pocketmine\item\TieredTool;
 
 class Redstone extends Solid{
 
-	protected $id = self::REDSTONE_BLOCK;
-
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
-	}
-
-	public function getHardness() : float{
-		return 5;
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_PICKAXE;
-	}
-
-	public function getToolHarvestLevel() : int{
-		return TieredTool::TIER_WOODEN;
-	}
-
-	public function getName() : string{
-		return "Redstone Block";
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(5.0, BlockToolType::PICKAXE, TieredTool::TIER_WOODEN, 30.0));
 	}
 }

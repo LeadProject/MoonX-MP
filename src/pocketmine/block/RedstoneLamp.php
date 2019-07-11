@@ -25,17 +25,39 @@ namespace pocketmine\block;
 
 class RedstoneLamp extends Solid{
 
-	protected $id = self::REDSTONE_LAMP;
+	/** @var BlockIdentifierFlattened */
+	protected $idInfo;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	/** @var bool */
+	protected $lit = false;
+
+	public function __construct(BlockIdentifierFlattened $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.3));
 	}
 
-	public function getName() : string{
-		return "Redstone Lamp";
+	public function getId() : int{
+		return $this->lit ? $this->idInfo->getSecondId() : parent::getId();
 	}
 
-	public function getHardness() : float{
-		return 0.3;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->lit = $id === $this->idInfo->getSecondId();
+	}
+
+	public function isLit() : bool{
+		return $this->lit;
+	}
+
+	/**
+	 * @param bool $lit
+	 *
+	 * @return $this
+	 */
+	public function setLit(bool $lit = true) : self{
+		$this->lit = $lit;
+		return $this;
+	}
+
+	public function getLightLevel() : int{
+		return $this->lit ? 15 : 0;
 	}
 }

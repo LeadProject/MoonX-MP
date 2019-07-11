@@ -24,9 +24,6 @@ declare(strict_types=1);
 namespace pocketmine\item;
 
 class DriedKelp extends Food{
-	public function __construct(int $meta = 0){
-		parent::__construct(self::DRIED_KELP, $meta, "Dried Kelp");
-	}
 
 	public function getFoodRestore() : int{
 		return 1;

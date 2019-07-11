@@ -27,11 +27,11 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 use pocketmine\resourcepacks\ResourcePack;
 use function count;
 
-class ResourcePackStackPacket extends DataPacket{
+class ResourcePackStackPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::RESOURCE_PACK_STACK_PACKET;
 
 	/** @var bool */
@@ -45,7 +45,24 @@ class ResourcePackStackPacket extends DataPacket{
 	/** @var bool */
 	public $isExperimental = false;
 
-	protected function decodePayload(){
+	/**
+	 * @param ResourcePack[] $resourcePacks
+	 * @param ResourcePack[] $behaviorPacks
+	 * @param bool           $mustAccept
+	 * @param bool           $isExperimental
+	 *
+	 * @return ResourcePackStackPacket
+	 */
+	public static function create(array $resourcePacks, array $behaviorPacks, bool $mustAccept, bool $isExperimental = false) : self{
+		$result = new self;
+		$result->mustAccept = $mustAccept;
+		$result->resourcePackStack = $resourcePacks;
+		$result->behaviorPackStack = $behaviorPacks;
+		$result->isExperimental = $isExperimental;
+		return $result;
+	}
+
+	protected function decodePayload() : void{
 		$this->mustAccept = $this->getBool();
 		$behaviorPackCount = $this->getUnsignedVarInt();
 		while($behaviorPackCount-- > 0){
@@ -64,7 +81,7 @@ class ResourcePackStackPacket extends DataPacket{
 		$this->isExperimental = $this->getBool();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putBool($this->mustAccept);
 
 		$this->putUnsignedVarInt(count($this->behaviorPackStack));
@@ -84,7 +101,7 @@ class ResourcePackStackPacket extends DataPacket{
 		$this->putBool($this->isExperimental);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleResourcePackStack($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleResourcePackStack($this);
 	}
 }

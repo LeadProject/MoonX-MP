@@ -25,9 +25,9 @@ namespace pocketmine\network\mcpe\protocol;
 
 #include <rules/DataPacket.h>
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class GuiDataPickItemPacket extends DataPacket{
+class GuiDataPickItemPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::GUI_DATA_PICK_ITEM_PACKET;
 
 	/** @var string */
@@ -37,19 +37,19 @@ class GuiDataPickItemPacket extends DataPacket{
 	/** @var int */
 	public $hotbarSlot;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->itemDescription = $this->getString();
 		$this->itemEffects = $this->getString();
 		$this->hotbarSlot = $this->getLInt();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putString($this->itemDescription);
 		$this->putString($this->itemEffects);
 		$this->putLInt($this->hotbarSlot);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleGuiDataPickItem($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleGuiDataPickItem($this);
 	}
 }

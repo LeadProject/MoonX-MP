@@ -27,13 +27,13 @@ namespace pocketmine\network\mcpe\protocol;
 
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\NetworkBinaryStream;
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 use pocketmine\network\mcpe\protocol\types\PlayerPermissions;
 use pocketmine\network\mcpe\protocol\types\RuntimeBlockMapping;
+use pocketmine\network\mcpe\serializer\NetworkBinaryStream;
 use function count;
 
-class StartGamePacket extends DataPacket{
+class StartGamePacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::START_GAME_PACKET;
 
 	/** @var string|null */
@@ -138,10 +138,13 @@ class StartGamePacket extends DataPacket{
 	/** @var string */
 	public $multiplayerCorrelationId = ""; //TODO: this should be filled with a UUID of some sort
 
+	/** @var bool */
+	public $onlySpawnV1Villagers = false;
+
 	/** @var array|null each entry must have a "name" (string) and "data" (int16) element */
 	public $runtimeIdTable = null;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->entityUniqueId = $this->getEntityUniqueId();
 		$this->entityRuntimeId = $this->getEntityRuntimeId();
 		$this->playerGamemode = $this->getVarInt();
@@ -202,9 +205,10 @@ class StartGamePacket extends DataPacket{
 		$this->runtimeIdTable = $table;
 
 		$this->multiplayerCorrelationId = $this->getString();
+		$this->onlySpawnV1Villagers = $this->getBool();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putEntityUniqueId($this->entityUniqueId);
 		$this->putEntityRuntimeId($this->entityRuntimeId);
 		$this->putVarInt($this->playerGamemode);
@@ -265,6 +269,7 @@ class StartGamePacket extends DataPacket{
 		}
 
 		$this->putString($this->multiplayerCorrelationId);
+		$this->putBool($this->onlySpawnV1Villagers);
 	}
 
 	private static function serializeBlockTable(array $table) : string{
@@ -277,7 +282,7 @@ class StartGamePacket extends DataPacket{
 		return $stream->getBuffer();
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleStartGame($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleStartGame($this);
 	}
 }

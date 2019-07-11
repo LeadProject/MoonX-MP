@@ -26,10 +26,10 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 use pocketmine\network\mcpe\protocol\types\DimensionIds;
 
-class SpawnParticleEffectPacket extends DataPacket{
+class SpawnParticleEffectPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::SPAWN_PARTICLE_EFFECT_PACKET;
 
 	/** @var int */
@@ -41,21 +41,21 @@ class SpawnParticleEffectPacket extends DataPacket{
 	/** @var string */
 	public $particleName;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->dimensionId = $this->getByte();
 		$this->entityUniqueId = $this->getEntityUniqueId();
 		$this->position = $this->getVector3();
 		$this->particleName = $this->getString();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putByte($this->dimensionId);
 		$this->putEntityUniqueId($this->entityUniqueId);
 		$this->putVector3($this->position);
 		$this->putString($this->particleName);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleSpawnParticleEffect($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleSpawnParticleEffect($this);
 	}
 }

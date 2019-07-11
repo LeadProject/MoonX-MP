@@ -23,34 +23,49 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
 use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
-use pocketmine\Player;
+use pocketmine\player\Player;
+use pocketmine\world\BlockTransaction;
 
 class EndRod extends Flowable{
 
-	protected $id = Block::END_ROD;
+	/** @var int */
+	protected $facing = Facing::DOWN;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? BlockBreakInfo::instant());
 	}
 
-	public function getName() : string{
-		return "End Rod";
+	protected function writeStateToMeta() : int{
+		if(Facing::axis($this->facing) === Facing::AXIS_Y){
+			return $this->facing;
+		}
+		return $this->facing ^ 1; //TODO: in PC this is always the same as facing, just PE is stupid
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		if($face === Vector3::SIDE_UP or $face === Vector3::SIDE_DOWN){
-			$this->meta = $face;
-		}else{
-			$this->meta = $face ^ 0x01;
-		}
-		if($blockClicked instanceof EndRod and $blockClicked->getDamage() === $this->meta){
-			$this->meta ^= 0x01;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		if($stateMeta !== 0 and $stateMeta !== 1){
+			$stateMeta ^= 1;
 		}
 
-		return $this->level->setBlock($blockReplace, $this, true, true);
+		$this->facing = BlockDataValidator::readFacing($stateMeta);
+	}
+
+	public function getStateBitmask() : int{
+		return 0b111;
+	}
+
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		$this->facing = $face;
+		if($blockClicked instanceof EndRod and $blockClicked->facing === $this->facing){
+			$this->facing = Facing::opposite($face);
+		}
+
+		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 	}
 
 	public function isSolid() : bool{
@@ -62,43 +77,15 @@ class EndRod extends Flowable{
 	}
 
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
-		$m = $this->meta & ~0x01;
-		$width = 0.375;
+		$myAxis = Facing::axis($this->facing);
 
-		switch($m){
-			case 0x00: //up/down
-				return new AxisAlignedBB(
-					$this->x + $width,
-					$this->y,
-					$this->z + $width,
-					$this->x + 1 - $width,
-					$this->y + 1,
-					$this->z + 1 - $width
-				);
-			case 0x02: //north/south
-				return new AxisAlignedBB(
-					$this->x,
-					$this->y + $width,
-					$this->z + $width,
-					$this->x + 1,
-					$this->y + 1 - $width,
-					$this->z + 1 - $width
-				);
-			case 0x04: //east/west
-				return new AxisAlignedBB(
-					$this->x + $width,
-					$this->y + $width,
-					$this->z,
-					$this->x + 1 - $width,
-					$this->y + 1 - $width,
-					$this->z + 1
-				);
+		$bb = AxisAlignedBB::one();
+		foreach([Facing::AXIS_Y, Facing::AXIS_Z, Facing::AXIS_X] as $axis){
+			if($axis === $myAxis){
+				continue;
+			}
+			$bb->squash($axis, 6 / 16);
 		}
-
-		return null;
-	}
-
-	public function getVariantBitmask() : int{
-		return 0;
+		return $bb;
 	}
 }

@@ -27,11 +27,12 @@ namespace pocketmine\network\mcpe\protocol;
 
 
 use pocketmine\entity\Skin;
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\BadPacketException;
+use pocketmine\network\mcpe\handler\PacketHandler;
 use pocketmine\network\mcpe\protocol\types\PlayerListEntry;
 use function count;
 
-class PlayerListPacket extends DataPacket{
+class PlayerListPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::PLAYER_LIST_PACKET;
 
 	public const TYPE_ADD = 0;
@@ -42,12 +43,21 @@ class PlayerListPacket extends DataPacket{
 	/** @var int */
 	public $type;
 
-	public function clean(){
-		$this->entries = [];
-		return parent::clean();
+	public static function add(array $entries) : self{
+		$result = new self;
+		$result->type = self::TYPE_ADD;
+		$result->entries = $entries;
+		return $result;
 	}
 
-	protected function decodePayload(){
+	public static function remove(array $entries) : self{
+		$result = new self;
+		$result->type = self::TYPE_REMOVE;
+		$result->entries = $entries;
+		return $result;
+	}
+
+	protected function decodePayload() : void{
 		$this->type = $this->getByte();
 		$count = $this->getUnsignedVarInt();
 		for($i = 0; $i < $count; ++$i){
@@ -64,13 +74,17 @@ class PlayerListPacket extends DataPacket{
 				$geometryName = $this->getString();
 				$geometryData = $this->getString();
 
-				$entry->skin = new Skin(
-					$skinId,
-					$skinData,
-					$capeData,
-					$geometryName,
-					$geometryData
-				);
+				try{
+					$entry->skin = new Skin(
+						$skinId,
+						$skinData,
+						$capeData,
+						$geometryName,
+						$geometryData
+					);
+				}catch(\InvalidArgumentException $e){
+					throw new BadPacketException($e->getMessage(), 0, $e);
+				}
 				$entry->xboxUserId = $this->getString();
 				$entry->platformChatId = $this->getString();
 			}else{
@@ -81,7 +95,7 @@ class PlayerListPacket extends DataPacket{
 		}
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putByte($this->type);
 		$this->putUnsignedVarInt(count($this->entries));
 		foreach($this->entries as $entry){
@@ -102,7 +116,7 @@ class PlayerListPacket extends DataPacket{
 		}
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handlePlayerList($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handlePlayerList($this);
 	}
 }

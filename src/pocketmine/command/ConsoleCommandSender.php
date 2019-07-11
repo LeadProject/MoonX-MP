@@ -25,19 +25,14 @@ namespace pocketmine\command;
 
 use pocketmine\lang\TextContainer;
 use pocketmine\permission\PermissibleBase;
-use pocketmine\permission\Permission;
-use pocketmine\permission\PermissionAttachment;
-use pocketmine\permission\PermissionAttachmentInfo;
-use pocketmine\plugin\Plugin;
+use pocketmine\permission\PermissibleDelegateTrait;
 use pocketmine\Server;
-use pocketmine\utils\MainLogger;
 use function explode;
 use function trim;
 use const PHP_INT_MAX;
 
 class ConsoleCommandSender implements CommandSender{
-
-	private $perm;
+	use PermissibleDelegateTrait;
 
 	/** @var int|null */
 	protected $lineHeight = null;
@@ -47,73 +42,25 @@ class ConsoleCommandSender implements CommandSender{
 	}
 
 	/**
-	 * @param Permission|string $name
-	 *
-	 * @return bool
-	 */
-	public function isPermissionSet($name) : bool{
-		return $this->perm->isPermissionSet($name);
-	}
-
-	/**
-	 * @param Permission|string $name
-	 *
-	 * @return bool
-	 */
-	public function hasPermission($name) : bool{
-		return $this->perm->hasPermission($name);
-	}
-
-	/**
-	 * @param Plugin $plugin
-	 * @param string $name
-	 * @param bool   $value
-	 *
-	 * @return PermissionAttachment
-	 */
-	public function addAttachment(Plugin $plugin, string $name = null, bool $value = null) : PermissionAttachment{
-		return $this->perm->addAttachment($plugin, $name, $value);
-	}
-
-	/**
-	 * @param PermissionAttachment $attachment
-	 *
-	 * @return void
-	 */
-	public function removeAttachment(PermissionAttachment $attachment){
-		$this->perm->removeAttachment($attachment);
-	}
-
-	public function recalculatePermissions(){
-		$this->perm->recalculatePermissions();
-	}
-
-	/**
-	 * @return PermissionAttachmentInfo[]
-	 */
-	public function getEffectivePermissions() : array{
-		return $this->perm->getEffectivePermissions();
-	}
-
-	/**
 	 * @return Server
 	 */
-	public function getServer(){
+	public function getServer() : Server{
 		return Server::getInstance();
 	}
 
 	/**
 	 * @param TextContainer|string $message
 	 */
-	public function sendMessage($message){
+	public function sendMessage($message) : void{
+		$server = $this->getServer();
 		if($message instanceof TextContainer){
-			$message = $this->getServer()->getLanguage()->translate($message);
+			$message = $server->getLanguage()->translate($message);
 		}else{
-			$message = $this->getServer()->getLanguage()->translateString($message);
+			$message = $server->getLanguage()->translateString($message);
 		}
 
 		foreach(explode("\n", trim($message)) as $line){
-			MainLogger::getLogger()->info($line);
+			$server->getLogger()->info($line);
 		}
 	}
 
@@ -134,7 +81,7 @@ class ConsoleCommandSender implements CommandSender{
 	/**
 	 * @param bool $value
 	 */
-	public function setOp(bool $value){
+	public function setOp(bool $value) : void{
 
 	}
 
@@ -142,7 +89,7 @@ class ConsoleCommandSender implements CommandSender{
 		return $this->lineHeight ?? PHP_INT_MAX;
 	}
 
-	public function setScreenLineHeight(int $height = null){
+	public function setScreenLineHeight(?int $height) : void{
 		if($height !== null and $height < 1){
 			throw new \InvalidArgumentException("Line height must be at least 1");
 		}

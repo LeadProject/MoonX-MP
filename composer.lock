@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "2f5313e4ebd7b62c785cf683b27464b4",
+    "content-hash": "7d9bec9f6226ca3ec19b06f6ed406718",
     "packages": [
         {
             "name": "adhocore/json-comment",
@@ -91,6 +91,209 @@
             "time": "2017-04-03T15:22:41+00:00"
         },
         {
+            "name": "fgrosse/phpasn1",
+            "version": "v2.1.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/fgrosse/PHPASN1.git",
+                "reference": "7ebf2a09084a7bbdb7b879c66fdf7ad80461bbe8"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/fgrosse/PHPASN1/zipball/7ebf2a09084a7bbdb7b879c66fdf7ad80461bbe8",
+                "reference": "7ebf2a09084a7bbdb7b879c66fdf7ad80461bbe8",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.0.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "~6.3",
+                "satooshi/php-coveralls": "~2.0"
+            },
+            "suggest": {
+                "ext-gmp": "GMP is the preferred extension for big integer calculations",
+                "php-curl": "For loading OID information from the web if they have not bee defined statically"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "2.0.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "FG\\": "lib/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Friedrich Große",
+                    "email": "friedrich.grosse@gmail.com",
+                    "homepage": "https://github.com/FGrosse",
+                    "role": "Author"
+                },
+                {
+                    "name": "All contributors",
+                    "homepage": "https://github.com/FGrosse/PHPASN1/contributors"
+                }
+            ],
+            "description": "A PHP Framework that allows you to encode and decode arbitrary ASN.1 structures using the ITU-T X.690 Encoding Rules.",
+            "homepage": "https://github.com/FGrosse/PHPASN1",
+            "keywords": [
+                "DER",
+                "asn.1",
+                "asn1",
+                "ber",
+                "binary",
+                "decoding",
+                "encoding",
+                "x.509",
+                "x.690",
+                "x509",
+                "x690"
+            ],
+            "time": "2018-12-02T01:34:34+00:00"
+        },
+        {
+            "name": "mdanter/ecc",
+            "version": "v0.5.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/phpecc/phpecc.git",
+                "reference": "b95f25cc1bacc83a9f0ccd375900b7cfd343029e"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/phpecc/phpecc/zipball/b95f25cc1bacc83a9f0ccd375900b7cfd343029e",
+                "reference": "b95f25cc1bacc83a9f0ccd375900b7cfd343029e",
+                "shasum": ""
+            },
+            "require": {
+                "ext-gmp": "*",
+                "fgrosse/phpasn1": "^2.0",
+                "php": "^7.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^6.0",
+                "squizlabs/php_codesniffer": "^2.0",
+                "symfony/yaml": "^2.6|^3.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Mdanter\\Ecc\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Matyas Danter",
+                    "homepage": "http://matejdanter.com/",
+                    "role": "Author"
+                },
+                {
+                    "name": "Thibaud Fabre",
+                    "email": "thibaud@aztech.io",
+                    "homepage": "http://aztech.io",
+                    "role": "Maintainer"
+                },
+                {
+                    "name": "Thomas Kerin",
+                    "email": "afk11@users.noreply.github.com",
+                    "role": "Maintainer"
+                }
+            ],
+            "description": "PHP Elliptic Curve Cryptography library",
+            "homepage": "https://github.com/phpecc/phpecc",
+            "keywords": [
+                "Diffie",
+                "ECDSA",
+                "Hellman",
+                "curve",
+                "ecdh",
+                "elliptic",
+                "nistp192",
+                "nistp224",
+                "nistp256",
+                "nistp384",
+                "nistp521",
+                "phpecc",
+                "secp256k1",
+                "secp256r1"
+            ],
+            "time": "2018-12-03T18:17:01+00:00"
+        },
+        {
+            "name": "particle/validator",
+            "version": "v2.3.4",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/particle-php/Validator.git",
+                "reference": "657c7543e51938dd9d114750e49d695129527a7a"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/particle-php/Validator/zipball/657c7543e51938dd9d114750e49d695129527a7a",
+                "reference": "657c7543e51938dd9d114750e49d695129527a7a",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=5.4"
+            },
+            "require-dev": {
+                "byrokrat/checkdigit": "^1.0",
+                "giggsey/libphonenumber-for-php": "^7.2",
+                "phpunit/phpunit": "~4.0",
+                "squizlabs/php_codesniffer": "2.*"
+            },
+            "suggest": {
+                "byrokrat/checkdigit": "If you want to use CreditCard validation rule, this library must be installed.",
+                "giggsey/libphonenumber-for-php": "If you want to use Phone validation rule, this library must be installed."
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "2.0-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Particle\\Validator\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Berry Langerak",
+                    "email": "berry@berryllium.nl",
+                    "role": "developer"
+                },
+                {
+                    "name": "Rick van der Staaij",
+                    "homepage": "http://rickvanderstaaij.nl",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Flexible and highly usable validation library with no dependencies.",
+            "homepage": "http://github.com/particle-php/validator",
+            "keywords": [
+                "validation",
+                "validator"
+            ],
+            "time": "2019-01-07T13:39:13+00:00"
+        },
+        {
             "name": "pocketmine/binaryutils",
             "version": "0.1.8",
             "source": {
@@ -126,16 +329,16 @@
         },
         {
             "name": "pocketmine/math",
-            "version": "0.2.2",
+            "version": "dev-master",
             "source": {
                 "type": "git",
                 "url": "https://github.com/pmmp/Math.git",
-                "reference": "b755d3fb7025c4ddb7d9d6df0ba7e0b65125e51c"
+                "reference": "52a92d6d5c665528a9fc597b1f10d6e15e7d861a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/pmmp/Math/zipball/b755d3fb7025c4ddb7d9d6df0ba7e0b65125e51c",
-                "reference": "b755d3fb7025c4ddb7d9d6df0ba7e0b65125e51c",
+                "url": "https://api.github.com/repos/pmmp/Math/zipball/52a92d6d5c665528a9fc597b1f10d6e15e7d861a",
+                "reference": "52a92d6d5c665528a9fc597b1f10d6e15e7d861a",
                 "shasum": ""
             },
             "require": {
@@ -148,35 +351,40 @@
                     "pocketmine\\math\\": "src/"
                 }
             },
+            "autoload-dev": {
+                "psr-4": {
+                    "pocketmine\\math\\": "tests/phpunit/"
+                }
+            },
             "license": [
                 "LGPL-3.0"
             ],
             "description": "PHP library containing math related code used in PocketMine-MP",
             "support": {
-                "source": "https://github.com/pmmp/Math/tree/0.2.2",
+                "source": "https://github.com/pmmp/Math/tree/master",
                 "issues": "https://github.com/pmmp/Math/issues"
             },
-            "time": "2019-01-04T15:42:36+00:00"
+            "time": "2019-04-18T18:03:11+00:00"
         },
         {
             "name": "pocketmine/nbt",
-            "version": "0.2.7",
+            "version": "dev-master",
             "source": {
                 "type": "git",
                 "url": "https://github.com/pmmp/NBT.git",
-                "reference": "2f176c9f2fd9b31db8bc2ada2f38990157ec8f1a"
+                "reference": "359149d516a042ef366f3bf234c0a9daa4d5ea2e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/pmmp/NBT/zipball/2f176c9f2fd9b31db8bc2ada2f38990157ec8f1a",
-                "reference": "2f176c9f2fd9b31db8bc2ada2f38990157ec8f1a",
+                "url": "https://api.github.com/repos/pmmp/NBT/zipball/359149d516a042ef366f3bf234c0a9daa4d5ea2e",
+                "reference": "359149d516a042ef366f3bf234c0a9daa4d5ea2e",
                 "shasum": ""
             },
             "require": {
                 "ext-zlib": "*",
                 "php": ">=7.2.0",
                 "php-64bit": "*",
-                "pocketmine/binaryutils": "^0.1.0"
+                "pocketmine/binaryutils": "^0.1.7"
             },
             "type": "library",
             "autoload": {
@@ -194,23 +402,23 @@
             ],
             "description": "PHP library for working with Named Binary Tags",
             "support": {
-                "source": "https://github.com/pmmp/NBT/tree/0.2.7",
+                "source": "https://github.com/pmmp/NBT/tree/master",
                 "issues": "https://github.com/pmmp/NBT/issues"
             },
-            "time": "2019-03-29T19:39:42+00:00"
+            "time": "2019-04-25T18:53:18+00:00"
         },
         {
             "name": "pocketmine/raklib",
-            "version": "0.12.4",
+            "version": "dev-master",
             "source": {
                 "type": "git",
                 "url": "https://github.com/pmmp/RakLib.git",
-                "reference": "fc1ccc8e61b9033e5372436b2e28a7a95388373f"
+                "reference": "b4799d6ecc0914b6d47ead8c70b50e53b043d828"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/pmmp/RakLib/zipball/fc1ccc8e61b9033e5372436b2e28a7a95388373f",
-                "reference": "fc1ccc8e61b9033e5372436b2e28a7a95388373f",
+                "url": "https://api.github.com/repos/pmmp/RakLib/zipball/b4799d6ecc0914b6d47ead8c70b50e53b043d828",
+                "reference": "b4799d6ecc0914b6d47ead8c70b50e53b043d828",
                 "shasum": ""
             },
             "require": {
@@ -222,7 +430,7 @@
                 "php-ipv6": "*",
                 "pocketmine/binaryutils": "^0.1.0",
                 "pocketmine/snooze": "^0.1.0",
-                "pocketmine/spl": "^0.3.0"
+                "pocketmine/spl": "dev-master"
             },
             "type": "library",
             "autoload": {
@@ -235,10 +443,10 @@
             ],
             "description": "A RakNet server implementation written in PHP",
             "support": {
-                "source": "https://github.com/pmmp/RakLib/tree/0.12.4",
+                "source": "https://github.com/pmmp/RakLib/tree/master",
                 "issues": "https://github.com/pmmp/RakLib/issues"
             },
-            "time": "2019-05-02T14:53:51+00:00"
+            "time": "2019-05-13T17:14:39+00:00"
         },
         {
             "name": "pocketmine/snooze",
@@ -276,23 +484,20 @@
         },
         {
             "name": "pocketmine/spl",
-            "version": "0.3.2",
+            "version": "dev-master",
             "source": {
                 "type": "git",
                 "url": "https://github.com/pmmp/SPL.git",
-                "reference": "7fd53857cd000491ba69e8db865792a024dd2c49"
+                "reference": "7b80cbebd90a320b109154a7ff594688c1e0efcf"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/pmmp/SPL/zipball/7fd53857cd000491ba69e8db865792a024dd2c49",
-                "reference": "7fd53857cd000491ba69e8db865792a024dd2c49",
+                "url": "https://api.github.com/repos/pmmp/SPL/zipball/7b80cbebd90a320b109154a7ff594688c1e0efcf",
+                "reference": "7b80cbebd90a320b109154a7ff594688c1e0efcf",
                 "shasum": ""
             },
             "type": "library",
             "autoload": {
-                "exclude-from-classmap": [
-                    "stubs"
-                ],
                 "classmap": [
                     "./"
                 ]
@@ -302,9 +507,9 @@
             ],
             "description": "Standard library files required by PocketMine-MP and related projects",
             "support": {
-                "source": "https://github.com/pmmp/SPL/tree/0.3.2"
+                "source": "https://github.com/pmmp/SPL/tree/master"
             },
-            "time": "2018-08-12T15:17:39+00:00"
+            "time": "2019-05-18T14:07:32+00:00"
         }
     ],
     "packages-dev": [],
@@ -312,6 +517,10 @@
     "minimum-stability": "stable",
     "stability-flags": {
         "ext-pthreads": 20,
+        "pocketmine/raklib": 20,
+        "pocketmine/spl": 20,
+        "pocketmine/nbt": 20,
+        "pocketmine/math": 20,
         "daverandom/callback-validator": 20
     },
     "prefer-stable": false,
@@ -320,11 +529,16 @@
         "php": ">=7.2.0",
         "php-64bit": "*",
         "ext-bcmath": "*",
+        "ext-chunkutils2": "^0.1.0",
         "ext-curl": "*",
+        "ext-crypto": "^0.3.1",
         "ext-ctype": "*",
         "ext-date": "*",
+        "ext-ds": "^1.2.7",
+        "ext-gmp": "*",
         "ext-hash": "*",
         "ext-json": "*",
+        "ext-leveldb": "^0.2.1",
         "ext-mbstring": "*",
         "ext-openssl": "*",
         "ext-pcre": "*",

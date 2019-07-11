@@ -23,30 +23,11 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
-use pocketmine\block\utils\ColorBlockMetaHelper;
 use pocketmine\item\TieredTool;
 
 class Concrete extends Solid{
 
-	protected $id = Block::CONCRETE;
-
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
-	}
-
-	public function getName() : string{
-		return ColorBlockMetaHelper::getColorFromMeta($this->meta) . " Concrete";
-	}
-
-	public function getHardness() : float{
-		return 1.8;
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_PICKAXE;
-	}
-
-	public function getToolHarvestLevel() : int{
-		return TieredTool::TIER_WOODEN;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(1.8, BlockToolType::PICKAXE, TieredTool::TIER_WOODEN));
 	}
 }

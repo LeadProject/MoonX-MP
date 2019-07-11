@@ -27,25 +27,7 @@ use pocketmine\item\TieredTool;
 
 class HardenedClay extends Solid{
 
-	protected $id = self::HARDENED_CLAY;
-
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
-	}
-
-	public function getName() : string{
-		return "Hardened Clay";
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_PICKAXE;
-	}
-
-	public function getToolHarvestLevel() : int{
-		return TieredTool::TIER_WOODEN;
-	}
-
-	public function getHardness() : float{
-		return 1.25;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(1.25, BlockToolType::PICKAXE, TieredTool::TIER_WOODEN, 21.0));
 	}
 }

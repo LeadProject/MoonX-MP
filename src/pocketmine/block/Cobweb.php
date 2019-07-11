@@ -29,33 +29,15 @@ use pocketmine\item\ItemFactory;
 
 class Cobweb extends Flowable{
 
-	protected $id = self::COBWEB;
-
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(4.0, BlockToolType::SWORD | BlockToolType::SHEARS, 1));
 	}
 
 	public function hasEntityCollision() : bool{
 		return true;
 	}
 
-	public function getName() : string{
-		return "Cobweb";
-	}
-
-	public function getHardness() : float{
-		return 4;
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_SWORD | BlockToolType::TYPE_SHEARS;
-	}
-
-	public function getToolHarvestLevel() : int{
-		return 1;
-	}
-
-	public function onEntityCollide(Entity $entity) : void{
+	public function onEntityInside(Entity $entity) : void{
 		$entity->resetFallDistance();
 	}
 

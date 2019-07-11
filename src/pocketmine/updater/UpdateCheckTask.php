@@ -24,14 +24,13 @@ declare(strict_types=1);
 
 namespace pocketmine\updater;
 
-
 use pocketmine\scheduler\AsyncTask;
-use pocketmine\Server;
 use pocketmine\utils\Internet;
 use function is_array;
 use function json_decode;
 
 class UpdateCheckTask extends AsyncTask{
+	private const TLS_KEY_UPDATER = "updater";
 
 	/** @var string */
 	private $endpoint;
@@ -40,12 +39,13 @@ class UpdateCheckTask extends AsyncTask{
 	/** @var string */
 	private $error = "Unknown error";
 
-	public function __construct(string $endpoint, string $channel){
+	public function __construct(AutoUpdater $updater, string $endpoint, string $channel){
+		$this->storeLocal(self::TLS_KEY_UPDATER, $updater);
 		$this->endpoint = $endpoint;
 		$this->channel = $channel;
 	}
 
-	public function onRun(){
+	public function onRun() : void{
 		$error = "";
 		$response = Internet::getURL($this->endpoint . "?channel=" . $this->channel, 4, [], $error);
 		$this->error = $error;
@@ -73,17 +73,13 @@ class UpdateCheckTask extends AsyncTask{
 		}
 	}
 
-	public function onCompletion(Server $server){
-		if($this->error !== ""){
-			$server->getLogger()->debug("[AutoUpdater] Async update check failed due to \"$this->error\"");
+	public function onCompletion() : void{
+		/** @var AutoUpdater $updater */
+		$updater = $this->fetchLocal(self::TLS_KEY_UPDATER);
+		if($this->hasResult()){
+			$updater->checkUpdateCallback($this->getResult());
 		}else{
-			$updateInfo = $this->getResult();
-			if(is_array($updateInfo)){
-				$server->getUpdater()->checkUpdateCallback($updateInfo);
-			}else{
-				$server->getLogger()->debug("[AutoUpdater] Update info error");
-			}
-
+			$updater->checkUpdateError($this->error);
 		}
 	}
 }

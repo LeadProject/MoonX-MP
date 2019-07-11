@@ -25,35 +25,9 @@ namespace pocketmine\block;
 
 use pocketmine\item\TieredTool;
 
-class StonePressurePlate extends Transparent{
+class StonePressurePlate extends SimplePressurePlate{
 
-	protected $id = self::STONE_PRESSURE_PLATE;
-
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
-	}
-
-	public function getName() : string{
-		return "Stone Pressure Plate";
-	}
-
-	public function isSolid() : bool{
-		return false;
-	}
-
-	public function getHardness() : float{
-		return 0.5;
-	}
-
-	public function getVariantBitmask() : int{
-		return 0;
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_PICKAXE;
-	}
-
-	public function getToolHarvestLevel() : int{
-		return TieredTool::TIER_WOODEN;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.5, BlockToolType::PICKAXE, TieredTool::TIER_WOODEN));
 	}
 }

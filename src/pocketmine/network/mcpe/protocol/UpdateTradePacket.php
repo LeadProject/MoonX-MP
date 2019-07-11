@@ -27,10 +27,10 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 use pocketmine\network\mcpe\protocol\types\WindowTypes;
 
-class UpdateTradePacket extends DataPacket{
+class UpdateTradePacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::UPDATE_TRADE_PACKET;
 
 	//TODO: find fields
@@ -56,7 +56,7 @@ class UpdateTradePacket extends DataPacket{
 	/** @var string */
 	public $offers;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->windowId = $this->getByte();
 		$this->windowType = $this->getByte();
 		$this->thisIsAlwaysZero = $this->getVarInt();
@@ -69,7 +69,7 @@ class UpdateTradePacket extends DataPacket{
 		$this->offers = $this->getRemaining();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putByte($this->windowId);
 		$this->putByte($this->windowType);
 		$this->putVarInt($this->thisIsAlwaysZero);
@@ -82,7 +82,7 @@ class UpdateTradePacket extends DataPacket{
 		$this->put($this->offers);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleUpdateTrade($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleUpdateTrade($this);
 	}
 }

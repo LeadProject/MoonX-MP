@@ -23,40 +23,30 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
-use pocketmine\math\Vector3;
+use pocketmine\math\Facing;
 
 class Rail extends BaseRail{
 
 	/* extended meta values for regular rails, to allow curving */
-	public const CURVE_SOUTHEAST = 6;
-	public const CURVE_SOUTHWEST = 7;
-	public const CURVE_NORTHWEST = 8;
-	public const CURVE_NORTHEAST = 9;
 
 	private const CURVE_CONNECTIONS = [
-		self::CURVE_SOUTHEAST => [
-			Vector3::SIDE_SOUTH,
-			Vector3::SIDE_EAST
+		BlockLegacyMetadata::RAIL_CURVE_SOUTHEAST => [
+			Facing::SOUTH,
+			Facing::EAST
 		],
-		self::CURVE_SOUTHWEST => [
-			Vector3::SIDE_SOUTH,
-			Vector3::SIDE_WEST
+		BlockLegacyMetadata::RAIL_CURVE_SOUTHWEST => [
+			Facing::SOUTH,
+			Facing::WEST
 		],
-		self::CURVE_NORTHWEST => [
-			Vector3::SIDE_NORTH,
-			Vector3::SIDE_WEST
+		BlockLegacyMetadata::RAIL_CURVE_NORTHWEST => [
+			Facing::NORTH,
+			Facing::WEST
 		],
-		self::CURVE_NORTHEAST => [
-			Vector3::SIDE_NORTH,
-			Vector3::SIDE_EAST
+		BlockLegacyMetadata::RAIL_CURVE_NORTHEAST => [
+			Facing::NORTH,
+			Facing::EAST
 		]
 	];
-
-	protected $id = self::RAIL;
-
-	public function getName() : string{
-		return "Rail";
-	}
 
 	protected function getMetaForState(array $connections) : int{
 		try{
@@ -66,16 +56,16 @@ class Rail extends BaseRail{
 		}
 	}
 
-	protected function getConnectionsForState() : array{
-		return self::CURVE_CONNECTIONS[$this->meta] ?? self::CONNECTIONS[$this->meta];
+	protected function getConnectionsFromMeta(int $meta) : ?array{
+		return self::CURVE_CONNECTIONS[$meta] ?? self::CONNECTIONS[$meta] ?? null;
 	}
 
 	protected function getPossibleConnectionDirectionsOneConstraint(int $constraint) : array{
 		static $horizontal = [
-			Vector3::SIDE_NORTH,
-			Vector3::SIDE_SOUTH,
-			Vector3::SIDE_WEST,
-			Vector3::SIDE_EAST
+			Facing::NORTH,
+			Facing::SOUTH,
+			Facing::WEST,
+			Facing::EAST
 		];
 
 		$possible = parent::getPossibleConnectionDirectionsOneConstraint($constraint);

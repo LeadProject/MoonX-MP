@@ -23,46 +23,51 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
 use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Bearing;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
+use pocketmine\player\Player;
+use pocketmine\world\BlockTransaction;
 
 class EndPortalFrame extends Solid{
 
-	protected $id = self::END_PORTAL_FRAME;
+	/** @var int */
+	protected $facing = Facing::NORTH;
+	/** @var bool */
+	protected $eye = false;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? BlockBreakInfo::indestructible());
+	}
+
+	protected function writeStateToMeta() : int{
+		return Bearing::fromFacing($this->facing) | ($this->eye ? BlockLegacyMetadata::END_PORTAL_FRAME_FLAG_EYE : 0);
+	}
+
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->facing = BlockDataValidator::readLegacyHorizontalFacing($stateMeta & 0x03);
+		$this->eye = ($stateMeta & BlockLegacyMetadata::END_PORTAL_FRAME_FLAG_EYE) !== 0;
+	}
+
+	public function getStateBitmask() : int{
+		return 0b111;
 	}
 
 	public function getLightLevel() : int{
 		return 1;
 	}
 
-	public function getName() : string{
-		return "End Portal Frame";
-	}
-
-	public function getHardness() : float{
-		return -1;
-	}
-
-	public function getBlastResistance() : float{
-		return 18000000;
-	}
-
-	public function isBreakable(Item $item) : bool{
-		return false;
-	}
-
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
+		return AxisAlignedBB::one()->trim(Facing::UP, 3 / 16);
+	}
 
-		return new AxisAlignedBB(
-			$this->x,
-			$this->y,
-			$this->z,
-			$this->x + 1,
-			$this->y + (($this->getDamage() & 0x04) > 0 ? 1 : 0.8125),
-			$this->z + 1
-		);
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		if($player !== null){
+			$this->facing = Facing::opposite($player->getHorizontalFacing());
+		}
+		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 	}
 }

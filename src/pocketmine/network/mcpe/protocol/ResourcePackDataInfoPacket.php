@@ -27,9 +27,9 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class ResourcePackDataInfoPacket extends DataPacket{
+class ResourcePackDataInfoPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::RESOURCE_PACK_DATA_INFO_PACKET;
 
 	/** @var string */
@@ -43,7 +43,17 @@ class ResourcePackDataInfoPacket extends DataPacket{
 	/** @var string */
 	public $sha256;
 
-	protected function decodePayload(){
+	public static function create(string $packId, int $maxChunkSize, int $chunkCount, int $compressedPackSize, string $sha256sum) : self{
+		$result = new self;
+		$result->packId = $packId;
+		$result->maxChunkSize = $maxChunkSize;
+		$result->chunkCount = $chunkCount;
+		$result->compressedPackSize = $compressedPackSize;
+		$result->sha256 = $sha256sum;
+		return $result;
+	}
+
+	protected function decodePayload() : void{
 		$this->packId = $this->getString();
 		$this->maxChunkSize = $this->getLInt();
 		$this->chunkCount = $this->getLInt();
@@ -51,7 +61,7 @@ class ResourcePackDataInfoPacket extends DataPacket{
 		$this->sha256 = $this->getString();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putString($this->packId);
 		$this->putLInt($this->maxChunkSize);
 		$this->putLInt($this->chunkCount);
@@ -59,7 +69,7 @@ class ResourcePackDataInfoPacket extends DataPacket{
 		$this->putString($this->sha256);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleResourcePackDataInfo($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleResourcePackDataInfo($this);
 	}
 }

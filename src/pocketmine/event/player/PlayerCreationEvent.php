@@ -24,70 +24,50 @@ declare(strict_types=1);
 namespace pocketmine\event\player;
 
 use pocketmine\event\Event;
-use pocketmine\network\SourceInterface;
-use pocketmine\Player;
+use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\player\Player;
 use function is_a;
 
 /**
  * Allows the creation of players overriding the base Player class
  */
 class PlayerCreationEvent extends Event{
-	/** @var SourceInterface */
-	private $interface;
-	/** @var string */
-	private $address;
-	/** @var int */
-	private $port;
+
+	/** @var NetworkSession */
+	private $session;
 
 	/** @var Player::class */
-	private $baseClass;
+	private $baseClass = Player::class;
 	/** @var Player::class */
-	private $playerClass;
+	private $playerClass = Player::class;
+
 
 	/**
-	 * @param SourceInterface $interface
-	 * @param Player::class   $baseClass
-	 * @param Player::class   $playerClass
-	 * @param string          $address
-	 * @param int             $port
+	 * @param NetworkSession $session
 	 */
-	public function __construct(SourceInterface $interface, $baseClass, $playerClass, string $address, int $port){
-		$this->interface = $interface;
-		$this->address = $address;
-		$this->port = $port;
-
-		if(!is_a($baseClass, Player::class, true)){
-			throw new \RuntimeException("Base class $baseClass must extend " . Player::class);
-		}
-
-		$this->baseClass = $baseClass;
-
-		if(!is_a($playerClass, Player::class, true)){
-			throw new \RuntimeException("Class $playerClass must extend " . Player::class);
-		}
-
-		$this->playerClass = $playerClass;
+	public function __construct(NetworkSession $session){
+		$this->session = $session;
 	}
 
 	/**
-	 * @return SourceInterface
+	 * @return NetworkSession
 	 */
-	public function getInterface() : SourceInterface{
-		return $this->interface;
+	public function getNetworkSession() : NetworkSession{
+		return $this->session;
 	}
 
 	/**
 	 * @return string
 	 */
 	public function getAddress() : string{
-		return $this->address;
+		return $this->session->getIp();
 	}
 
 	/**
 	 * @return int
 	 */
 	public function getPort() : int{
-		return $this->port;
+		return $this->session->getPort();
 	}
 
 	/**
@@ -100,7 +80,7 @@ class PlayerCreationEvent extends Event{
 	/**
 	 * @param Player::class $class
 	 */
-	public function setBaseClass($class){
+	public function setBaseClass($class) : void{
 		if(!is_a($class, $this->baseClass, true)){
 			throw new \RuntimeException("Base class $class must extend " . $this->baseClass);
 		}
@@ -118,7 +98,7 @@ class PlayerCreationEvent extends Event{
 	/**
 	 * @param Player::class $class
 	 */
-	public function setPlayerClass($class){
+	public function setPlayerClass($class) : void{
 		if(!is_a($class, $this->baseClass, true)){
 			throw new \RuntimeException("Class $class must extend " . $this->baseClass);
 		}

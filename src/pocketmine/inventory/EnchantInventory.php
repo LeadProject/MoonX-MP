@@ -23,29 +23,16 @@ declare(strict_types=1);
 
 namespace pocketmine\inventory;
 
-use pocketmine\level\Position;
-use pocketmine\network\mcpe\protocol\types\WindowTypes;
-use pocketmine\Player;
+use pocketmine\player\Player;
+use pocketmine\world\Position;
 
-class EnchantInventory extends ContainerInventory{
+class EnchantInventory extends BlockInventory{
 
 	/** @var Position */
 	protected $holder;
 
 	public function __construct(Position $pos){
-		parent::__construct($pos->asPosition());
-	}
-
-	public function getNetworkType() : int{
-		return WindowTypes::ENCHANTMENT;
-	}
-
-	public function getName() : string{
-		return "Enchantment Table";
-	}
-
-	public function getDefaultSize() : int{
-		return 2; //1 input, 1 lapis
+		parent::__construct($pos->asPosition(), 2);
 	}
 
 	/**

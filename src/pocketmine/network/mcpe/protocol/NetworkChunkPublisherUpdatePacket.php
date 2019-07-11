@@ -25,9 +25,9 @@ namespace pocketmine\network\mcpe\protocol;
 
 #include <rules/DataPacket.h>
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class NetworkChunkPublisherUpdatePacket extends DataPacket{
+class NetworkChunkPublisherUpdatePacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::NETWORK_CHUNK_PUBLISHER_UPDATE_PACKET;
 
 	/** @var int */
@@ -39,17 +39,26 @@ class NetworkChunkPublisherUpdatePacket extends DataPacket{
 	/** @var int */
 	public $radius;
 
-	protected function decodePayload(){
+	public static function create(int $x, int $y, int $z, int $blockRadius) : self{
+		$result = new self;
+		$result->x = $x;
+		$result->y = $y;
+		$result->z = $z;
+		$result->radius = $blockRadius;
+		return $result;
+	}
+
+	protected function decodePayload() : void{
 		$this->getSignedBlockPosition($this->x, $this->y, $this->z);
 		$this->radius = $this->getUnsignedVarInt();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putSignedBlockPosition($this->x, $this->y, $this->z);
 		$this->putUnsignedVarInt($this->radius);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleNetworkChunkPublisherUpdate($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleNetworkChunkPublisherUpdate($this);
 	}
 }

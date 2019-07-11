@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace pocketmine\inventory\transaction;
 
+use pocketmine\crafting\CraftingRecipe;
 use pocketmine\event\inventory\CraftItemEvent;
-use pocketmine\inventory\CraftingRecipe;
 use pocketmine\item\Item;
 use pocketmine\network\mcpe\protocol\ContainerClosePacket;
 use pocketmine\network\mcpe\protocol\types\ContainerIds;
@@ -32,6 +32,21 @@ use function array_pop;
 use function count;
 use function intdiv;
 
+/**
+ * This transaction type is specialized for crafting validation. It shares most of the same semantics of the base
+ * inventory transaction type, but the requirement for validity is slightly different.
+ *
+ * It is expected that the actions in this transaction type will produce an **unbalanced result**, i.e. some inputs won't
+ * have corresponding outputs, and vice versa. The reason why is because the unmatched inputs are recipe inputs, and
+ * the unmatched outputs are recipe results.
+ *
+ * Therefore, the validity requirement is that the imbalance of the transaction should match the expected inputs and
+ * outputs of a registered crafting recipe.
+ *
+ * This transaction allows multiple repetitions of the same recipe to be crafted in a single batch. In the case of batch
+ * crafting, the number of unmatched inputs and outputs must be exactly divisible by the expected recipe ingredients and
+ * results, with no remainder. Any leftovers are expected to be emitted back to the crafting grid.
+ */
 class CraftingTransaction extends InventoryTransaction{
 	/** @var CraftingRecipe|null */
 	protected $recipe;
@@ -50,6 +65,7 @@ class CraftingTransaction extends InventoryTransaction{
 	 * @param int    $iterations
 	 *
 	 * @return int
+	 * @throws TransactionValidationException
 	 */
 	protected function matchRecipeItems(array $txItems, array $recipeItems, bool $wildcards, int $iterations = 0) : int{
 		if(empty($recipeItems)){
@@ -72,7 +88,7 @@ class CraftingTransaction extends InventoryTransaction{
 
 			$haveCount = 0;
 			foreach($txItems as $j => $txItem){
-				if($txItem->equals($recipeItem, !$wildcards or !$recipeItem->hasAnyDamageValue(), !$wildcards or $recipeItem->hasCompoundTag())){
+				if($txItem->equals($recipeItem, !$wildcards or !$recipeItem->hasAnyDamageValue(), !$wildcards or $recipeItem->hasNamedTag())){
 					$haveCount += $txItem->getCount();
 					unset($txItems[$j]);
 				}
@@ -151,9 +167,7 @@ class CraftingTransaction extends InventoryTransaction{
 		 * So people don't whine about messy desync issues when someone cancels CraftItemEvent, or when a crafting
 		 * transaction goes wrong.
 		 */
-		$pk = new ContainerClosePacket();
-		$pk->windowId = ContainerIds::NONE;
-		$this->source->dataPacket($pk);
+		$this->source->sendDataPacket(ContainerClosePacket::create(ContainerIds::NONE));
 	}
 
 	public function execute() : bool{

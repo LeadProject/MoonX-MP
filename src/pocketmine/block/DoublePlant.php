@@ -24,42 +24,38 @@ declare(strict_types=1);
 namespace pocketmine\block;
 
 use pocketmine\item\Item;
-use pocketmine\item\ItemFactory;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
-use pocketmine\Player;
-use function mt_rand;
+use pocketmine\player\Player;
+use pocketmine\world\BlockTransaction;
 
 class DoublePlant extends Flowable{
-	public const BITFLAG_TOP = 0x08;
 
-	protected $id = self::DOUBLE_PLANT;
+	/** @var bool */
+	protected $top = false;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? BlockBreakInfo::instant());
 	}
 
-	public function canBeReplaced() : bool{
-		return $this->meta === 2 or $this->meta === 3; //grass or fern
+	protected function writeStateToMeta() : int{
+		return ($this->top ? BlockLegacyMetadata::DOUBLE_PLANT_FLAG_TOP : 0);
 	}
 
-	public function getName() : string{
-		static $names = [
-			0 => "Sunflower",
-			1 => "Lilac",
-			2 => "Double Tallgrass",
-			3 => "Large Fern",
-			4 => "Rose Bush",
-			5 => "Peony"
-		];
-		return $names[$this->getVariant()] ?? "";
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->top = ($stateMeta & BlockLegacyMetadata::DOUBLE_PLANT_FLAG_TOP) !== 0;
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		$id = $blockReplace->getSide(Vector3::SIDE_DOWN)->getId();
-		if(($id === Block::GRASS or $id === Block::DIRT) and $blockReplace->getSide(Vector3::SIDE_UP)->canBeReplaced()){
-			$this->getLevel()->setBlock($blockReplace, $this, false, false);
-			$this->getLevel()->setBlock($blockReplace->getSide(Vector3::SIDE_UP), BlockFactory::get($this->id, $this->meta | self::BITFLAG_TOP), false, false);
+	public function getStateBitmask() : int{
+		return 0b1000;
+	}
 
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		$id = $blockReplace->getSide(Facing::DOWN)->getId();
+		if(($id === BlockLegacyIds::GRASS or $id === BlockLegacyIds::DIRT) and $blockReplace->getSide(Facing::UP)->canBeReplaced()){
+			$top = clone $this;
+			$top->top = true;
+			$tx->addBlock($blockReplace, $this)->addBlock($blockReplace->getSide(Facing::UP), $top);
 			return true;
 		}
 
@@ -71,56 +67,28 @@ class DoublePlant extends Flowable{
 	 * @return bool
 	 */
 	public function isValidHalfPlant() : bool{
-		if($this->meta & self::BITFLAG_TOP){
-			$other = $this->getSide(Vector3::SIDE_DOWN);
-		}else{
-			$other = $this->getSide(Vector3::SIDE_UP);
-		}
+		$other = $this->getSide($this->top ? Facing::DOWN : Facing::UP);
 
 		return (
-			$other->getId() === $this->getId() and
-			$other->getVariant() === $this->getVariant() and
-			($other->getDamage() & self::BITFLAG_TOP) !== ($this->getDamage() & self::BITFLAG_TOP)
+			$other instanceof DoublePlant and
+			$other->isSameType($this) and
+			$other->top !== $this->top
 		);
 	}
 
 	public function onNearbyBlockChange() : void{
-		if(!$this->isValidHalfPlant() or (($this->meta & self::BITFLAG_TOP) === 0 and $this->getSide(Vector3::SIDE_DOWN)->isTransparent())){
-			$this->getLevel()->useBreakOn($this);
+		if(!$this->isValidHalfPlant() or (!$this->top and $this->getSide(Facing::DOWN)->isTransparent())){
+			$this->getWorld()->useBreakOn($this);
 		}
-	}
-
-	public function getVariantBitmask() : int{
-		return 0x07;
-	}
-
-	public function getToolType() : int{
-		return ($this->meta === 2 or $this->meta === 3) ? BlockToolType::TYPE_SHEARS : BlockToolType::TYPE_NONE;
-	}
-
-	public function getToolHarvestLevel() : int{
-		return ($this->meta === 2 or $this->meta === 3) ? 1 : 0; //only grass or fern require shears
 	}
 
 	public function getDrops(Item $item) : array{
-		if($this->meta & self::BITFLAG_TOP){
-			if($this->isCompatibleWithTool($item)){
-				return parent::getDrops($item);
-			}
-
-			if(mt_rand(0, 24) === 0){
-				return [
-					ItemFactory::get(Item::SEEDS)
-				];
-			}
-		}
-
-		return [];
+		return $this->top ? parent::getDrops($item) : [];
 	}
 
 	public function getAffectedBlocks() : array{
 		if($this->isValidHalfPlant()){
-			return [$this, $this->getSide(($this->meta & self::BITFLAG_TOP) !== 0 ? Vector3::SIDE_DOWN : Vector3::SIDE_UP)];
+			return [$this, $this->getSide($this->top ? Facing::DOWN : Facing::UP)];
 		}
 
 		return parent::getAffectedBlocks();

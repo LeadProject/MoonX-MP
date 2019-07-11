@@ -26,15 +26,17 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class AnimatePacket extends DataPacket{
+class AnimatePacket extends DataPacket implements ClientboundPacket, ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::ANIMATE_PACKET;
 
 	public const ACTION_SWING_ARM = 1;
 
 	public const ACTION_STOP_SLEEP = 3;
 	public const ACTION_CRITICAL_HIT = 4;
+	public const ACTION_ROW_RIGHT = 128;
+	public const ACTION_ROW_LEFT = 129;
 
 	/** @var int */
 	public $action;
@@ -43,7 +45,20 @@ class AnimatePacket extends DataPacket{
 	/** @var float */
 	public $float = 0.0; //TODO (Boat rowing time?)
 
-	protected function decodePayload(){
+	public static function create(int $entityRuntimeId, int $actionId) : self{
+		$result = new self;
+		$result->entityRuntimeId = $entityRuntimeId;
+		$result->action = $actionId;
+		return $result;
+	}
+
+	public static function boatHack(int $entityRuntimeId, int $actionId, float $data) : self{
+		$result = self::create($entityRuntimeId, $actionId);
+		$result->float = $data;
+		return $result;
+	}
+
+	protected function decodePayload() : void{
 		$this->action = $this->getVarInt();
 		$this->entityRuntimeId = $this->getEntityRuntimeId();
 		if($this->action & 0x80){
@@ -51,7 +66,7 @@ class AnimatePacket extends DataPacket{
 		}
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putVarInt($this->action);
 		$this->putEntityRuntimeId($this->entityRuntimeId);
 		if($this->action & 0x80){
@@ -59,7 +74,7 @@ class AnimatePacket extends DataPacket{
 		}
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleAnimate($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleAnimate($this);
 	}
 }

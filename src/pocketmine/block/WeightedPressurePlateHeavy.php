@@ -23,11 +23,11 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
-class WeightedPressurePlateHeavy extends WeightedPressurePlateLight{
+use pocketmine\item\TieredTool;
 
-	protected $id = self::HEAVY_WEIGHTED_PRESSURE_PLATE;
+class WeightedPressurePlateHeavy extends WeightedPressurePlate{
 
-	public function getName() : string{
-		return "Weighted Pressure Plate Heavy";
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.5, BlockToolType::PICKAXE, TieredTool::TIER_WOODEN));
 	}
 }

@@ -23,29 +23,28 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
-use pocketmine\item\Item;
-
 class Bedrock extends Solid{
 
-	protected $id = self::BEDROCK;
+	/** @var bool */
+	private $burnsForever = false;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? BlockBreakInfo::indestructible());
 	}
 
-	public function getName() : string{
-		return "Bedrock";
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->burnsForever = ($stateMeta & BlockLegacyMetadata::BEDROCK_FLAG_INFINIBURN) !== 0;
 	}
 
-	public function getHardness() : float{
-		return -1;
+	protected function writeStateToMeta() : int{
+		return $this->burnsForever ? BlockLegacyMetadata::BEDROCK_FLAG_INFINIBURN : 0;
 	}
 
-	public function getBlastResistance() : float{
-		return 18000000;
+	public function getStateBitmask() : int{
+		return 0b1;
 	}
 
-	public function isBreakable(Item $item) : bool{
-		return false;
+	public function burnsForever() : bool{
+		return $this->burnsForever;
 	}
 }

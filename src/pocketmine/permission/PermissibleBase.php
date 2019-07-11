@@ -26,7 +26,7 @@ namespace pocketmine\permission;
 use pocketmine\plugin\Plugin;
 use pocketmine\plugin\PluginException;
 use pocketmine\timings\Timings;
-use function spl_object_hash;
+use function spl_object_id;
 
 class PermissibleBase implements Permissible{
 	/** @var ServerOperator */
@@ -65,7 +65,7 @@ class PermissibleBase implements Permissible{
 	/**
 	 * @param bool $value
 	 */
-	public function setOp(bool $value){
+	public function setOp(bool $value) : void{
 		$this->opable->setOp($value);
 	}
 
@@ -111,13 +111,13 @@ class PermissibleBase implements Permissible{
 	 *
 	 * @return PermissionAttachment
 	 */
-	public function addAttachment(Plugin $plugin, string $name = null, bool $value = null) : PermissionAttachment{
+	public function addAttachment(Plugin $plugin, ?string $name = null, ?bool $value = null) : PermissionAttachment{
 		if(!$plugin->isEnabled()){
 			throw new PluginException("Plugin " . $plugin->getDescription()->getName() . " is disabled");
 		}
 
 		$result = new PermissionAttachment($plugin, $this->parent ?? $this);
-		$this->attachments[spl_object_hash($result)] = $result;
+		$this->attachments[spl_object_id($result)] = $result;
 		if($name !== null and $value !== null){
 			$result->setPermission($name, $value);
 		}
@@ -130,9 +130,9 @@ class PermissibleBase implements Permissible{
 	/**
 	 * @param PermissionAttachment $attachment
 	 */
-	public function removeAttachment(PermissionAttachment $attachment){
-		if(isset($this->attachments[spl_object_hash($attachment)])){
-			unset($this->attachments[spl_object_hash($attachment)]);
+	public function removeAttachment(PermissionAttachment $attachment) : void{
+		if(isset($this->attachments[spl_object_id($attachment)])){
+			unset($this->attachments[spl_object_id($attachment)]);
 			if(($ex = $attachment->getRemovalCallback()) !== null){
 				$ex->attachmentRemoved($attachment);
 			}
@@ -143,7 +143,7 @@ class PermissibleBase implements Permissible{
 
 	}
 
-	public function recalculatePermissions(){
+	public function recalculatePermissions() : void{
 		Timings::$permissibleCalculationTimer->startTiming();
 
 		$this->clearPermissions();
@@ -165,7 +165,7 @@ class PermissibleBase implements Permissible{
 		Timings::$permissibleCalculationTimer->stopTiming();
 	}
 
-	public function clearPermissions(){
+	public function clearPermissions() : void{
 		$permManager = PermissionManager::getInstance();
 		$permManager->unsubscribeFromAllPermissions($this->parent ?? $this);
 
@@ -180,7 +180,7 @@ class PermissibleBase implements Permissible{
 	 * @param bool                      $invert
 	 * @param PermissionAttachment|null $attachment
 	 */
-	private function calculateChildPermissions(array $children, bool $invert, ?PermissionAttachment $attachment){
+	private function calculateChildPermissions(array $children, bool $invert, ?PermissionAttachment $attachment) : void{
 		$permManager = PermissionManager::getInstance();
 		foreach($children as $name => $v){
 			$perm = $permManager->getPermission($name);

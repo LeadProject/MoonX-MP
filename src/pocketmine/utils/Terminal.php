@@ -29,6 +29,7 @@ use function function_exists;
 use function getenv;
 use function is_array;
 use function stream_isatty;
+use const PHP_EOL;
 
 abstract class Terminal{
 	public static $FORMAT_BOLD = "";
@@ -79,7 +80,7 @@ abstract class Terminal{
 		return $result;
 	}
 
-	protected static function getFallbackEscapeCodes(){
+	protected static function getFallbackEscapeCodes() : void{
 		self::$FORMAT_BOLD = "\x1b[1m";
 		self::$FORMAT_OBFUSCATED = "";
 		self::$FORMAT_ITALIC = "\x1b[3m";
@@ -106,7 +107,7 @@ abstract class Terminal{
 		self::$COLOR_WHITE = "\x1b[38;5;231m";
 	}
 
-	protected static function getEscapeCodes(){
+	protected static function getEscapeCodes() : void{
 		self::$FORMAT_BOLD = `tput bold`;
 		self::$FORMAT_OBFUSCATED = `tput smacs`;
 		self::$FORMAT_ITALIC = `tput sitm`;
@@ -262,5 +263,24 @@ abstract class Terminal{
 		}
 
 		return $newString;
+	}
+
+	/**
+	 * Emits a string containing Minecraft colour codes to the console formatted with native colours.
+	 *
+	 * @param string $line
+	 */
+	public static function write(string $line) : void{
+		echo self::toANSI($line);
+	}
+
+	/**
+	 * Emits a string containing Minecraft colour codes to the console formatted with native colours, followed by a
+	 * newline character.
+	 *
+	 * @param string $line
+	 */
+	public static function writeLine(string $line) : void{
+		echo self::toANSI($line) . self::$FORMAT_RESET . PHP_EOL;
 	}
 }

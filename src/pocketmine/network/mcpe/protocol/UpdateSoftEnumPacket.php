@@ -25,10 +25,10 @@ namespace pocketmine\network\mcpe\protocol;
 
 #include <rules/DataPacket.h>
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 use function count;
 
-class UpdateSoftEnumPacket extends DataPacket{
+class UpdateSoftEnumPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::UPDATE_SOFT_ENUM_PACKET;
 
 	public const TYPE_ADD = 0;
@@ -42,7 +42,7 @@ class UpdateSoftEnumPacket extends DataPacket{
 	/** @var int */
 	public $type;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->enumName = $this->getString();
 		for($i = 0, $count = $this->getUnsignedVarInt(); $i < $count; ++$i){
 			$this->values[] = $this->getString();
@@ -50,7 +50,7 @@ class UpdateSoftEnumPacket extends DataPacket{
 		$this->type = $this->getByte();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putString($this->enumName);
 		$this->putUnsignedVarInt(count($this->values));
 		foreach($this->values as $v){
@@ -59,7 +59,7 @@ class UpdateSoftEnumPacket extends DataPacket{
 		$this->putByte($this->type);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleUpdateSoftEnum($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleUpdateSoftEnum($this);
 	}
 }

@@ -25,46 +25,34 @@ namespace pocketmine\block;
 
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
-use pocketmine\Player;
+use pocketmine\player\Player;
+use pocketmine\world\BlockTransaction;
 use function mt_rand;
 
 class DeadBush extends Flowable{
 
-	protected $id = self::DEAD_BUSH;
-
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? BlockBreakInfo::instant(BlockToolType::SHEARS, 1));
 	}
 
-	public function getName() : string{
-		return "Dead Bush";
-	}
-
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		if(!$this->getSide(Vector3::SIDE_DOWN)->isTransparent()){
-			return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		if(!$this->getSide(Facing::DOWN)->isTransparent()){
+			return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 		}
 
 		return false;
 	}
 
 	public function onNearbyBlockChange() : void{
-		if($this->getSide(Vector3::SIDE_DOWN)->isTransparent()){
-			$this->getLevel()->useBreakOn($this);
+		if($this->getSide(Facing::DOWN)->isTransparent()){
+			$this->getWorld()->useBreakOn($this);
 		}
 	}
 
-	public function getToolType() : int{
-		return BlockToolType::TYPE_SHEARS;
-	}
-
-	public function getToolHarvestLevel() : int{
-		return 1;
-	}
-
 	public function getDrops(Item $item) : array{
-		if(!$this->isCompatibleWithTool($item)){
+		if(!$this->breakInfo->isToolCompatible($item)){
 			return [
 				ItemFactory::get(Item::STICK, 0, mt_rand(0, 2))
 			];

@@ -25,9 +25,9 @@ namespace pocketmine\network\mcpe\protocol;
 
 #include <rules/DataPacket.h>
 
-use pocketmine\network\mcpe\CachedEncapsulatedPacket;
-use pocketmine\network\mcpe\NetworkBinaryStream;
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\BadPacketException;
+use pocketmine\network\mcpe\serializer\NetworkBinaryStream;
+use pocketmine\utils\BinaryDataException;
 use pocketmine\utils\Utils;
 use function bin2hex;
 use function get_class;
@@ -35,21 +35,16 @@ use function is_object;
 use function is_string;
 use function method_exists;
 
-abstract class DataPacket extends NetworkBinaryStream{
+abstract class DataPacket extends NetworkBinaryStream implements Packet{
 
 	public const NETWORK_ID = 0;
-
-	/** @var bool */
-	public $isEncoded = false;
-	/** @var CachedEncapsulatedPacket */
-	public $__encapsulatedPacket = null;
 
 	/** @var int */
 	public $senderSubId = 0;
 	/** @var int */
 	public $recipientSubId = 0;
 
-	public function pid(){
+	public function pid() : int{
 		return $this::NETWORK_ID;
 	}
 
@@ -57,89 +52,57 @@ abstract class DataPacket extends NetworkBinaryStream{
 		return (new \ReflectionClass($this))->getShortName();
 	}
 
-	public function canBeBatched() : bool{
-		return true;
-	}
-
 	public function canBeSentBeforeLogin() : bool{
 		return false;
 	}
 
 	/**
-	 * Returns whether the packet may legally have unread bytes left in the buffer.
-	 * @return bool
+	 * @throws BadPacketException
 	 */
-	public function mayHaveUnreadBytes() : bool{
-		return false;
+	final public function decode() : void{
+		$this->rewind();
+		try{
+			$this->decodeHeader();
+			$this->decodePayload();
+		}catch(BinaryDataException | BadPacketException $e){
+			throw new BadPacketException($this->getName() . ": " . $e->getMessage(), 0, $e);
+		}
 	}
 
 	/**
-	 * @throws \OutOfBoundsException
+	 * @throws BinaryDataException
 	 * @throws \UnexpectedValueException
 	 */
-	public function decode(){
-		$this->offset = 0;
-		$this->decodeHeader();
-		$this->decodePayload();
-	}
-
-	/**
-	 * @throws \OutOfBoundsException
-	 * @throws \UnexpectedValueException
-	 */
-	protected function decodeHeader(){
+	protected function decodeHeader() : void{
 		$pid = $this->getUnsignedVarInt();
 		if($pid !== static::NETWORK_ID){
+			//TODO: this means a logical error in the code, but how to prevent it from happening?
 			throw new \UnexpectedValueException("Expected " . static::NETWORK_ID . " for packet ID, got $pid");
 		}
 	}
 
 	/**
-	 * Note for plugin developers: If you're adding your own packets, you should perform decoding in here.
+	 * Decodes the packet body, without the packet ID or other generic header fields.
 	 *
-	 * @throws \OutOfBoundsException
-	 * @throws \UnexpectedValueException
+	 * @throws BadPacketException
+	 * @throws BinaryDataException
 	 */
-	protected function decodePayload(){
+	abstract protected function decodePayload() : void;
 
-	}
-
-	public function encode(){
+	final public function encode() : void{
 		$this->reset();
 		$this->encodeHeader();
 		$this->encodePayload();
-		$this->isEncoded = true;
 	}
 
-	protected function encodeHeader(){
+	protected function encodeHeader() : void{
 		$this->putUnsignedVarInt(static::NETWORK_ID);
 	}
 
 	/**
-	 * Note for plugin developers: If you're adding your own packets, you should perform encoding in here.
+	 * Encodes the packet body, without the packet ID or other generic header fields.
 	 */
-	protected function encodePayload(){
-
-	}
-
-	/**
-	 * Performs handling for this packet. Usually you'll want an appropriately named method in the NetworkSession for this.
-	 *
-	 * This method returns a bool to indicate whether the packet was handled or not. If the packet was unhandled, a debug message will be logged with a hexdump of the packet.
-	 * Typically this method returns the return value of the handler in the supplied NetworkSession. See other packets for examples how to implement this.
-	 *
-	 * @param NetworkSession $session
-	 *
-	 * @return bool true if the packet was handled successfully, false if not.
-	 */
-	abstract public function handle(NetworkSession $session) : bool;
-
-	public function clean(){
-		$this->buffer = null;
-		$this->isEncoded = false;
-		$this->offset = 0;
-		return $this;
-	}
+	abstract protected function encodePayload() : void;
 
 	public function __debugInfo(){
 		$data = [];

@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\event\entity;
 
-use pocketmine\entity\EffectInstance;
+use pocketmine\entity\effect\EffectInstance;
 use pocketmine\entity\Entity;
 
 /**
@@ -38,7 +38,7 @@ class EntityEffectAddEvent extends EntityEffectEvent{
 	 * @param EffectInstance $effect
 	 * @param EffectInstance $oldEffect
 	 */
-	public function __construct(Entity $entity, EffectInstance $effect, EffectInstance $oldEffect = null){
+	public function __construct(Entity $entity, EffectInstance $effect, ?EffectInstance $oldEffect = null){
 		parent::__construct($entity, $effect);
 		$this->oldEffect = $oldEffect;
 	}

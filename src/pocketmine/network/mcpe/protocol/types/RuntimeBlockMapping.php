@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol\types;
 
-use pocketmine\block\BlockIds;
+use pocketmine\block\BlockLegacyIds;
 use function file_get_contents;
 use function getmypid;
 use function json_decode;
@@ -103,7 +103,7 @@ final class RuntimeBlockMapping{
 		 * if not found, try id+0 (strip meta)
 		 * if still not found, return update! block
 		 */
-		return self::$legacyToRuntimeMap[($id << 4) | $meta] ?? self::$legacyToRuntimeMap[$id << 4] ?? self::$legacyToRuntimeMap[BlockIds::INFO_UPDATE << 4];
+		return self::$legacyToRuntimeMap[($id << 4) | $meta] ?? self::$legacyToRuntimeMap[$id << 4] ?? self::$legacyToRuntimeMap[BlockLegacyIds::INFO_UPDATE << 4];
 	}
 
 	/**

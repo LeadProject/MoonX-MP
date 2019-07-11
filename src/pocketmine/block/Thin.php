@@ -24,83 +24,71 @@ declare(strict_types=1);
 namespace pocketmine\block;
 
 use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Vector3;
+use pocketmine\math\Facing;
 
-abstract class Thin extends Transparent{
+class Thin extends Transparent{
+	/** @var bool[] facing => dummy */
+	protected $connections = [];
+
+	public function readStateFromWorld() : void{
+		parent::readStateFromWorld();
+
+		foreach(Facing::HORIZONTAL as $facing){
+			$side = $this->getSide($facing);
+			//FIXME: currently there's no proper way to tell if a block is a full-block, so we check the bounding box size
+			if($side instanceof Thin or ($bb = $side->getBoundingBox()) !== null and $bb->getAverageEdgeLength() >= 1){
+				$this->connections[$facing] = true;
+			}else{
+				unset($this->connections[$facing]);
+			}
+		}
+	}
 
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
-		$width = 0.5 - 0.125 / 2;
-
-		return new AxisAlignedBB(
-			$this->x + ($this->canConnect($this->getSide(Vector3::SIDE_WEST)) ? 0 : $width),
-			$this->y,
-			$this->z + ($this->canConnect($this->getSide(Vector3::SIDE_NORTH)) ? 0 : $width),
-			$this->x + 1 - ($this->canConnect($this->getSide(Vector3::SIDE_EAST)) ? 0 : $width),
-			$this->y + 1,
-			$this->z + 1 - ($this->canConnect($this->getSide(Vector3::SIDE_SOUTH)) ? 0 : $width)
-		);
+		$bb = AxisAlignedBB::one();
+		foreach(Facing::HORIZONTAL as $facing){
+			if(!isset($this->connections[$facing])){
+				$bb->trim($facing, 7 / 16);
+			}
+		}
+		return $bb;
 	}
 
 	protected function recalculateCollisionBoxes() : array{
-		$inset = 0.5 - 0.125 / 2;
+		$inset = 7 / 16;
 
 		/** @var AxisAlignedBB[] $bbs */
 		$bbs = [];
 
-		$connectWest = $this->canConnect($this->getSide(Vector3::SIDE_WEST));
-		$connectEast = $this->canConnect($this->getSide(Vector3::SIDE_EAST));
+		if(isset($this->connections[Facing::WEST]) or isset($this->connections[Facing::EAST])){
+			$bb = AxisAlignedBB::one()->squash(Facing::AXIS_Z, $inset);
 
-		if($connectWest or $connectEast){
-			//X axis (west/east)
-			$bbs[] = new AxisAlignedBB(
-				$this->x + ($connectWest ? 0 : $inset),
-				$this->y,
-				$this->z + $inset,
-				$this->x + 1 - ($connectEast ? 0 : $inset),
-				$this->y + 1,
-				$this->z + 1 - $inset
-			);
+			if(!isset($this->connections[Facing::WEST])){
+				$bb->trim(Facing::WEST, $inset);
+			}elseif(!isset($this->connections[Facing::EAST])){
+				$bb->trim(Facing::EAST, $inset);
+			}
+			$bbs[] = $bb;
 		}
 
-		$connectNorth = $this->canConnect($this->getSide(Vector3::SIDE_NORTH));
-		$connectSouth = $this->canConnect($this->getSide(Vector3::SIDE_SOUTH));
+		if(isset($this->connections[Facing::NORTH]) or isset($this->connections[Facing::SOUTH])){
+			$bb = AxisAlignedBB::one()->squash(Facing::AXIS_X, $inset);
 
-		if($connectNorth or $connectSouth){
-			//Z axis (north/south)
-			$bbs[] = new AxisAlignedBB(
-				$this->x + $inset,
-				$this->y,
-				$this->z + ($connectNorth ? 0 : $inset),
-				$this->x + 1 - $inset,
-				$this->y + 1,
-				$this->z + 1 - ($connectSouth ? 0 : $inset)
-			);
+			if(!isset($this->connections[Facing::NORTH])){
+				$bb->trim(Facing::NORTH, $inset);
+			}elseif(!isset($this->connections[Facing::SOUTH])){
+				$bb->trim(Facing::SOUTH, $inset);
+			}
+			$bbs[] = $bb;
 		}
 
 		if(empty($bbs)){
 			//centre post AABB (only needed if not connected on any axis - other BBs overlapping will do this if any connections are made)
 			return [
-				new AxisAlignedBB(
-					$this->x + $inset,
-					$this->y,
-					$this->z + $inset,
-					$this->x + 1 - $inset,
-					$this->y + 1,
-					$this->z + 1 - $inset
-				)
+				AxisAlignedBB::one()->contract($inset, 0, $inset)
 			];
 		}
 
 		return $bbs;
-	}
-
-	public function canConnect(Block $block) : bool{
-		if($block instanceof Thin){
-			return true;
-		}
-
-		//FIXME: currently there's no proper way to tell if a block is a full-block, so we check the bounding box size
-		$bb = $block->getBoundingBox();
-		return $bb !== null and $bb->getAverageEdgeLength() >= 1;
 	}
 }

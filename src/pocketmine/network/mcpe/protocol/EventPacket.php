@@ -25,9 +25,9 @@ namespace pocketmine\network\mcpe\protocol;
 
 #include <rules/DataPacket.h>
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class EventPacket extends DataPacket{
+class EventPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::EVENT_PACKET;
 
 	public const TYPE_ACHIEVEMENT_AWARDED = 0;
@@ -51,7 +51,7 @@ class EventPacket extends DataPacket{
 	/** @var int */
 	public $type;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->playerRuntimeId = $this->getEntityRuntimeId();
 		$this->eventData = $this->getVarInt();
 		$this->type = $this->getByte();
@@ -59,7 +59,7 @@ class EventPacket extends DataPacket{
 		//TODO: nice confusing mess
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putEntityRuntimeId($this->playerRuntimeId);
 		$this->putVarInt($this->eventData);
 		$this->putByte($this->type);
@@ -67,7 +67,7 @@ class EventPacket extends DataPacket{
 		//TODO: also nice confusing mess
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleEvent($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleEvent($this);
 	}
 }

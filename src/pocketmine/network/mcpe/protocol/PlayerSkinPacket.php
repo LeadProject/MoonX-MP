@@ -26,10 +26,11 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 use pocketmine\entity\Skin;
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\BadPacketException;
+use pocketmine\network\mcpe\handler\PacketHandler;
 use pocketmine\utils\UUID;
 
-class PlayerSkinPacket extends DataPacket{
+class PlayerSkinPacket extends DataPacket implements ClientboundPacket, ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::PLAYER_SKIN_PACKET;
 
 	/** @var UUID */
@@ -43,7 +44,7 @@ class PlayerSkinPacket extends DataPacket{
 	/** @var bool */
 	public $premiumSkin = false;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->uuid = $this->getUUID();
 
 		$skinId = $this->getString();
@@ -54,12 +55,16 @@ class PlayerSkinPacket extends DataPacket{
 		$geometryModel = $this->getString();
 		$geometryData = $this->getString();
 
-		$this->skin = new Skin($skinId, $skinData, $capeData, $geometryModel, $geometryData);
+		try{
+			$this->skin = new Skin($skinId, $skinData, $capeData, $geometryModel, $geometryData);
+		}catch(\InvalidArgumentException $e){
+			throw new BadPacketException($e->getMessage(), 0, $e);
+		}
 
 		$this->premiumSkin = $this->getBool();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putUUID($this->uuid);
 
 		$this->putString($this->skin->getSkinId());
@@ -73,7 +78,7 @@ class PlayerSkinPacket extends DataPacket{
 		$this->putBool($this->premiumSkin);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handlePlayerSkin($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handlePlayerSkin($this);
 	}
 }

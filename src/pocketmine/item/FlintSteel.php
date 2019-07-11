@@ -25,29 +25,27 @@ namespace pocketmine\item;
 
 use pocketmine\block\Block;
 use pocketmine\block\BlockFactory;
+use pocketmine\block\BlockLegacyIds;
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
-use pocketmine\Player;
+use pocketmine\player\Player;
+use pocketmine\world\sound\FlintSteelSound;
 use function assert;
 
 class FlintSteel extends Tool{
-	public function __construct(int $meta = 0){
-		parent::__construct(self::FLINT_STEEL, $meta, "Flint and Steel");
-	}
 
-	public function onActivate(Player $player, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector) : bool{
-		if($blockReplace->getId() === self::AIR){
-			$level = $player->getLevel();
-			assert($level !== null);
-			$level->setBlock($blockReplace, BlockFactory::get(Block::FIRE), true);
-			$level->broadcastLevelSoundEvent($blockReplace->add(0.5, 0.5, 0.5), LevelSoundEventPacket::SOUND_IGNITE);
+	public function onActivate(Player $player, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector) : ItemUseResult{
+		if($blockReplace->getId() === BlockLegacyIds::AIR){
+			$world = $player->getWorld();
+			assert($world !== null);
+			$world->setBlock($blockReplace, BlockFactory::get(BlockLegacyIds::FIRE));
+			$world->addSound($blockReplace->add(0.5, 0.5, 0.5), new FlintSteelSound());
 
 			$this->applyDamage(1);
 
-			return true;
+			return ItemUseResult::SUCCESS();
 		}
 
-		return false;
+		return ItemUseResult::NONE();
 	}
 
 	public function getMaxDurability() : int{

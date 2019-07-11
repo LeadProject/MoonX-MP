@@ -25,14 +25,12 @@ namespace pocketmine\item;
 
 use pocketmine\block\Block;
 use pocketmine\block\BlockFactory;
+use pocketmine\block\BlockLegacyIds;
 
 class Carrot extends Food{
-	public function __construct(int $meta = 0){
-		parent::__construct(self::CARROT, $meta, "Carrot");
-	}
 
 	public function getBlock() : Block{
-		return BlockFactory::get(Block::CARROT_BLOCK);
+		return BlockFactory::get(BlockLegacyIds::CARROT_BLOCK);
 	}
 
 	public function getFoodRestore() : int{

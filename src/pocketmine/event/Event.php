@@ -36,8 +36,6 @@ abstract class Event{
 
 	/** @var string|null */
 	protected $eventName = null;
-	/** @var bool */
-	private $isCancelled = false;
 
 	/**
 	 * @return string
@@ -47,39 +45,9 @@ abstract class Event{
 	}
 
 	/**
-	 * @return bool
-	 *
-	 * @throws \BadMethodCallException
-	 */
-	public function isCancelled() : bool{
-		if(!($this instanceof Cancellable)){
-			throw new \BadMethodCallException(get_class($this) . " is not Cancellable");
-		}
-
-		/** @var Event $this */
-		return $this->isCancelled;
-	}
-
-	/**
-	 * @param bool $value
-	 *
-	 * @throws \BadMethodCallException
-	 */
-	public function setCancelled(bool $value = true) : void{
-		if(!($this instanceof Cancellable)){
-			throw new \BadMethodCallException(get_class($this) . " is not Cancellable");
-		}
-
-		/** @var Event $this */
-		$this->isCancelled = $value;
-	}
-
-	/**
 	 * Calls event handlers registered for this event.
 	 *
 	 * @throws \RuntimeException if event call recursion reaches the max depth limit
-	 *
-	 * @throws \ReflectionException
 	 */
 	public function call() : void{
 		if(self::$eventCallDepth >= self::MAX_EVENT_CALL_DEPTH){
@@ -87,7 +55,7 @@ abstract class Event{
 			throw new \RuntimeException("Recursive event call detected (reached max depth of " . self::MAX_EVENT_CALL_DEPTH . " calls)");
 		}
 
-		$handlerList = HandlerList::getHandlerListFor(get_class($this));
+		$handlerList = HandlerListManager::global()->getListFor(get_class($this));
 		assert($handlerList !== null, "Called event should have a valid HandlerList");
 
 		++self::$eventCallDepth;

@@ -28,12 +28,13 @@ namespace pocketmine\network\mcpe\protocol;
 use pocketmine\entity\Attribute;
 use pocketmine\entity\EntityIds;
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\BadPacketException;
+use pocketmine\network\mcpe\handler\PacketHandler;
 use pocketmine\network\mcpe\protocol\types\EntityLink;
 use function array_search;
 use function count;
 
-class AddEntityPacket extends DataPacket{
+class AddEntityPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::ADD_ENTITY_PACKET;
 
 	/*
@@ -141,9 +142,6 @@ class AddEntityPacket extends DataPacket{
 		EntityIds::AGENT => "minecraft:agent",
 		EntityIds::ICE_BOMB => "minecraft:ice_bomb",
 		EntityIds::PHANTOM => "minecraft:phantom",
-		EntityIds::PILLAGER => "minecraft:pillager",
-		EntityIds::RAVAGER => "minecraft:ravager",
-		EntityIds::WANDERING_TRADER => "minecraft:wandering_trader",
 		EntityIds::TRIPOD_CAMERA => "minecraft:tripod_camera"
 	];
 
@@ -171,12 +169,12 @@ class AddEntityPacket extends DataPacket{
 	/** @var EntityLink[] */
 	public $links = [];
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->entityUniqueId = $this->getEntityUniqueId();
 		$this->entityRuntimeId = $this->getEntityRuntimeId();
 		$this->type = array_search($t = $this->getString(), self::LEGACY_ID_MAP_BC, true);
 		if($this->type === false){
-			throw new \UnexpectedValueException("Can't map ID $t to legacy ID");
+			throw new BadPacketException("Can't map ID $t to legacy ID");
 		}
 		$this->position = $this->getVector3();
 		$this->motion = $this->getVector3();
@@ -186,19 +184,23 @@ class AddEntityPacket extends DataPacket{
 
 		$attrCount = $this->getUnsignedVarInt();
 		for($i = 0; $i < $attrCount; ++$i){
-			$name = $this->getString();
+			$id = $this->getString();
 			$min = $this->getLFloat();
 			$current = $this->getLFloat();
 			$max = $this->getLFloat();
-			$attr = Attribute::getAttributeByName($name);
+			$attr = Attribute::getAttribute($id);
 
 			if($attr !== null){
-				$attr->setMinValue($min);
-				$attr->setMaxValue($max);
-				$attr->setValue($current);
+				try{
+					$attr->setMinValue($min);
+					$attr->setMaxValue($max);
+					$attr->setValue($current);
+				}catch(\InvalidArgumentException $e){
+					throw new BadPacketException($e->getMessage(), 0, $e); //TODO: address this properly
+				}
 				$this->attributes[] = $attr;
 			}else{
-				throw new \UnexpectedValueException("Unknown attribute type \"$name\"");
+				throw new BadPacketException("Unknown attribute type \"$id\"");
 			}
 		}
 
@@ -209,7 +211,7 @@ class AddEntityPacket extends DataPacket{
 		}
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putEntityUniqueId($this->entityUniqueId ?? $this->entityRuntimeId);
 		$this->putEntityRuntimeId($this->entityRuntimeId);
 		if(!isset(self::LEGACY_ID_MAP_BC[$this->type])){
@@ -224,7 +226,7 @@ class AddEntityPacket extends DataPacket{
 
 		$this->putUnsignedVarInt(count($this->attributes));
 		foreach($this->attributes as $attribute){
-			$this->putString($attribute->getName());
+			$this->putString($attribute->getId());
 			$this->putLFloat($attribute->getMinValue());
 			$this->putLFloat($attribute->getValue());
 			$this->putLFloat($attribute->getMaxValue());
@@ -237,7 +239,7 @@ class AddEntityPacket extends DataPacket{
 		}
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleAddEntity($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleAddEntity($this);
 	}
 }

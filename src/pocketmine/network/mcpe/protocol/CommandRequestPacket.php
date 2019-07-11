@@ -25,10 +25,10 @@ namespace pocketmine\network\mcpe\protocol;
 
 #include <rules/DataPacket.h>
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 use pocketmine\network\mcpe\protocol\types\CommandOriginData;
 
-class CommandRequestPacket extends DataPacket{
+class CommandRequestPacket extends DataPacket implements ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::COMMAND_REQUEST_PACKET;
 
 	/** @var string */
@@ -38,19 +38,19 @@ class CommandRequestPacket extends DataPacket{
 	/** @var bool */
 	public $isInternal;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->command = $this->getString();
 		$this->originData = $this->getCommandOriginData();
 		$this->isInternal = $this->getBool();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putString($this->command);
 		$this->putCommandOriginData($this->originData);
 		$this->putBool($this->isInternal);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleCommandRequest($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleCommandRequest($this);
 	}
 }

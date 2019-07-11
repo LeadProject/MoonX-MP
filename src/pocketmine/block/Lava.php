@@ -27,41 +27,23 @@ use pocketmine\entity\Entity;
 use pocketmine\event\entity\EntityCombustByBlockEvent;
 use pocketmine\event\entity\EntityDamageByBlockEvent;
 use pocketmine\event\entity\EntityDamageEvent;
-use pocketmine\item\Item;
-use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
-use pocketmine\Player;
+use pocketmine\math\Facing;
+use pocketmine\world\sound\BucketEmptyLavaSound;
+use pocketmine\world\sound\BucketFillLavaSound;
+use pocketmine\world\sound\Sound;
 
 class Lava extends Liquid{
-
-	protected $id = self::FLOWING_LAVA;
-
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
-	}
 
 	public function getLightLevel() : int{
 		return 15;
 	}
 
-	public function getName() : string{
-		return "Lava";
+	public function getBucketFillSound() : Sound{
+		return new BucketFillLavaSound();
 	}
 
-	public function getStillForm() : Block{
-		return BlockFactory::get(Block::STILL_LAVA, $this->meta);
-	}
-
-	public function getFlowingForm() : Block{
-		return BlockFactory::get(Block::FLOWING_LAVA, $this->meta);
-	}
-
-	public function getBucketFillSound() : int{
-		return LevelSoundEventPacket::SOUND_BUCKET_FILL_LAVA;
-	}
-
-	public function getBucketEmptySound() : int{
-		return LevelSoundEventPacket::SOUND_BUCKET_EMPTY_LAVA;
+	public function getBucketEmptySound() : Sound{
+		return new BucketEmptyLavaSound();
 	}
 
 	public function tickRate() : int{
@@ -72,9 +54,12 @@ class Lava extends Liquid{
 		return 2; //TODO: this is 1 in the nether
 	}
 
-	protected function checkForHarden(){
+	protected function checkForHarden() : void{
 		$colliding = null;
-		for($side = 1; $side <= 5; ++$side){ //don't check downwards side
+		foreach(Facing::ALL as $side){
+			if($side === Facing::DOWN){
+				continue;
+			}
 			$blockSide = $this->getSide($side);
 			if($blockSide instanceof Water){
 				$colliding = $blockSide;
@@ -83,23 +68,23 @@ class Lava extends Liquid{
 		}
 
 		if($colliding !== null){
-			if($this->getDamage() === 0){
-				$this->liquidCollide($colliding, BlockFactory::get(Block::OBSIDIAN));
-			}elseif($this->getDamage() <= 4){
-				$this->liquidCollide($colliding, BlockFactory::get(Block::COBBLESTONE));
+			if($this->decay === 0){
+				$this->liquidCollide($colliding, BlockFactory::get(BlockLegacyIds::OBSIDIAN));
+			}elseif($this->decay <= 4){
+				$this->liquidCollide($colliding, BlockFactory::get(BlockLegacyIds::COBBLESTONE));
 			}
 		}
 	}
 
-	protected function flowIntoBlock(Block $block, int $newFlowDecay) : void{
+	protected function flowIntoBlock(Block $block, int $newFlowDecay, bool $falling) : void{
 		if($block instanceof Water){
-			$block->liquidCollide($this, BlockFactory::get(Block::STONE));
+			$block->liquidCollide($this, BlockFactory::get(BlockLegacyIds::STONE));
 		}else{
-			parent::flowIntoBlock($block, $newFlowDecay);
+			parent::flowIntoBlock($block, $newFlowDecay, $falling);
 		}
 	}
 
-	public function onEntityCollide(Entity $entity) : void{
+	public function onEntityInside(Entity $entity) : void{
 		$entity->fallDistance *= 0.5;
 
 		$ev = new EntityDamageByBlockEvent($this, $entity, EntityDamageEvent::CAUSE_LAVA, 4);
@@ -112,12 +97,5 @@ class Lava extends Liquid{
 		}
 
 		$entity->resetFallDistance();
-	}
-
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		$ret = $this->getLevel()->setBlock($this, $this, true, false);
-		$this->getLevel()->scheduleDelayedBlockUpdate($this, $this->tickRate());
-
-		return $ret;
 	}
 }

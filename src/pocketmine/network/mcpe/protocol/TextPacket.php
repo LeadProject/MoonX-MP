@@ -26,10 +26,10 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 use function count;
 
-class TextPacket extends DataPacket{
+class TextPacket extends DataPacket implements ClientboundPacket, ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::TEXT_PACKET;
 
 	public const TYPE_RAW = 0;
@@ -58,7 +58,65 @@ class TextPacket extends DataPacket{
 	/** @var string */
 	public $platformChatId = "";
 
-	protected function decodePayload(){
+	private static function messageOnly(int $type, string $message) : self{
+		$result = new self;
+		$result->type = $type;
+		$result->message = $message;
+		return $result;
+	}
+
+	private static function baseTranslation(int $type, string $key, array $parameters) : self{
+		$result = new self;
+		$result->type = $type;
+		$result->needsTranslation = true;
+		$result->message = $key;
+		$result->parameters = $parameters;
+		return $result;
+	}
+
+	public static function raw(string $message) : self{
+		return self::messageOnly(self::TYPE_RAW, $message);
+	}
+
+	/**
+	 * @param string    $key
+	 * @param string[]  $parameters
+	 *
+	 * @return TextPacket
+	 */
+	public static function translation(string $key, array $parameters = []) : self{
+		return self::baseTranslation(self::TYPE_TRANSLATION, $key, $parameters);
+	}
+
+	public static function popup(string $message) : self{
+		return self::messageOnly(self::TYPE_POPUP, $message);
+	}
+
+	/**
+	 * @param string   $key
+	 * @param string[] $parameters
+	 *
+	 * @return TextPacket
+	 */
+	public static function translatedPopup(string $key, array $parameters = []) : self{
+		return self::baseTranslation(self::TYPE_POPUP, $key, $parameters);
+	}
+
+	/**
+	 * @param string   $key
+	 * @param string[] $parameters
+	 *
+	 * @return TextPacket
+	 */
+	public static function jukeboxPopup(string $key, array $parameters = []) : self{
+		return self::baseTranslation(self::TYPE_JUKEBOX_POPUP, $key, $parameters);
+	}
+
+	public static function tip(string $message) : self{
+		return self::messageOnly(self::TYPE_TIP, $message);
+	}
+
+	protected function decodePayload() : void{
 		$this->type = $this->getByte();
 		$this->needsTranslation = $this->getBool();
 		switch($this->type){
@@ -89,7 +147,7 @@ class TextPacket extends DataPacket{
 		$this->platformChatId = $this->getString();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putByte($this->type);
 		$this->putBool($this->needsTranslation);
 		switch($this->type){
@@ -120,7 +178,7 @@ class TextPacket extends DataPacket{
 		$this->putString($this->platformChatId);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleText($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleText($this);
 	}
 }

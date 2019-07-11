@@ -23,8 +23,8 @@ declare(strict_types=1);
 
 namespace pocketmine\event\player;
 
-use pocketmine\level\Position;
-use pocketmine\Player;
+use pocketmine\player\Player;
+use pocketmine\world\Position;
 
 /**
  * Called when a player is respawned

@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\event\player;
 
-use pocketmine\block\Block;
+use pocketmine\block\BlockLegacyIds;
 use pocketmine\entity\Living;
 use pocketmine\event\entity\EntityDamageByBlockEvent;
 use pocketmine\event\entity\EntityDamageByEntityEvent;
@@ -32,7 +32,7 @@ use pocketmine\event\entity\EntityDeathEvent;
 use pocketmine\item\Item;
 use pocketmine\lang\TextContainer;
 use pocketmine\lang\TranslationContainer;
-use pocketmine\Player;
+use pocketmine\player\Player;
 
 class PlayerDeathEvent extends EntityDeathEvent{
 	/** @var Player */
@@ -45,10 +45,11 @@ class PlayerDeathEvent extends EntityDeathEvent{
 	/**
 	 * @param Player                    $entity
 	 * @param Item[]                    $drops
+	 * @param int                       $xp
 	 * @param string|TextContainer|null $deathMessage Null will cause the default vanilla message to be used
 	 */
-	public function __construct(Player $entity, array $drops, $deathMessage = null){
-		parent::__construct($entity, $drops);
+	public function __construct(Player $entity, array $drops, int $xp, $deathMessage){
+		parent::__construct($entity, $drops, $xp);
 		$this->deathMessage = $deathMessage ?? self::deriveMessage($entity->getDisplayName(), $entity->getLastDamageCause());
 	}
 
@@ -170,7 +171,7 @@ class PlayerDeathEvent extends EntityDeathEvent{
 
 			case EntityDamageEvent::CAUSE_CONTACT:
 				if($deathCause instanceof EntityDamageByBlockEvent){
-					if($deathCause->getDamager()->getId() === Block::CACTUS){
+					if($deathCause->getDamager()->getId() === BlockLegacyIds::CACTUS){
 						$message = "death.attack.cactus";
 					}
 				}

@@ -25,12 +25,13 @@ namespace pocketmine\network\mcpe\protocol;
 
 #include <rules/DataPacket.h>
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 use pocketmine\network\mcpe\protocol\types\CommandOriginData;
 use pocketmine\network\mcpe\protocol\types\CommandOutputMessage;
+use pocketmine\utils\BinaryDataException;
 use function count;
 
-class CommandOutputPacket extends DataPacket{
+class CommandOutputPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::COMMAND_OUTPUT_PACKET;
 
 	/** @var CommandOriginData */
@@ -44,7 +45,7 @@ class CommandOutputPacket extends DataPacket{
 	/** @var string */
 	public $unknownString;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->originData = $this->getCommandOriginData();
 		$this->outputType = $this->getByte();
 		$this->successCount = $this->getUnsignedVarInt();
@@ -58,6 +59,10 @@ class CommandOutputPacket extends DataPacket{
 		}
 	}
 
+	/**
+	 * @return CommandOutputMessage
+	 * @throws BinaryDataException
+	 */
 	protected function getCommandMessage() : CommandOutputMessage{
 		$message = new CommandOutputMessage();
 
@@ -71,7 +76,7 @@ class CommandOutputPacket extends DataPacket{
 		return $message;
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putCommandOriginData($this->originData);
 		$this->putByte($this->outputType);
 		$this->putUnsignedVarInt($this->successCount);
@@ -86,7 +91,7 @@ class CommandOutputPacket extends DataPacket{
 		}
 	}
 
-	protected function putCommandMessage(CommandOutputMessage $message){
+	protected function putCommandMessage(CommandOutputMessage $message) : void{
 		$this->putBool($message->isInternal);
 		$this->putString($message->messageId);
 
@@ -96,7 +101,7 @@ class CommandOutputPacket extends DataPacket{
 		}
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleCommandOutput($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleCommandOutput($this);
 	}
 }

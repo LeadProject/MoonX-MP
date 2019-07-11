@@ -27,7 +27,7 @@ use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
 use pocketmine\command\utils\InvalidCommandSyntaxException;
 use pocketmine\lang\TranslationContainer;
-use pocketmine\Player;
+use pocketmine\player\Player;
 use pocketmine\utils\TextFormat;
 use function count;
 use function implode;
@@ -59,7 +59,7 @@ class WhitelistCommand extends VanillaCommand{
 			}
 			switch(strtolower($args[0])){
 				case "reload":
-					$sender->getServer()->reloadWhitelist();
+					$sender->getServer()->getWhitelisted()->reload();
 					Command::broadcastCommandMessage($sender, new TranslationContainer("commands.whitelist.reloaded"));
 
 					return true;

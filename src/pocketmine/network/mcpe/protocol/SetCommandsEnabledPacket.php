@@ -26,23 +26,23 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class SetCommandsEnabledPacket extends DataPacket{
+class SetCommandsEnabledPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::SET_COMMANDS_ENABLED_PACKET;
 
 	/** @var bool */
 	public $enabled;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->enabled = $this->getBool();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putBool($this->enabled);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleSetCommandsEnabled($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleSetCommandsEnabled($this);
 	}
 }

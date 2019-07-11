@@ -27,16 +27,14 @@ declare(strict_types=1);
  */
 namespace pocketmine\wizard;
 
-use pocketmine\lang\BaseLang;
+use pocketmine\lang\Language;
+use pocketmine\lang\LanguageNotFoundException;
 use pocketmine\utils\Config;
 use pocketmine\utils\Internet;
 use pocketmine\utils\InternetException;
-use function base64_encode;
 use function fgets;
-use function random_bytes;
 use function sleep;
 use function strtolower;
-use function substr;
 use function trim;
 use const PHP_EOL;
 use const STDIN;
@@ -44,10 +42,10 @@ use const STDIN;
 class SetupWizard{
 	public const DEFAULT_NAME = \pocketmine\NAME . " Server";
 	public const DEFAULT_PORT = 19132;
-	public const DEFAULT_PLAYERS = 20;
+	public const DEFAULT_PLAYERS = 40;
 	public const DEFAULT_GAMEMODE = 0;
 
-	/** @var BaseLang */
+	/** @var Language */
 	private $lang;
 
 	public function __construct(){
@@ -57,8 +55,9 @@ class SetupWizard{
 	public function run() : bool{
 		$this->message(\pocketmine\NAME . " set-up wizard");
 
-		$langs = BaseLang::getLanguageList();
-		if(empty($langs)){
+		try{
+			$langs = Language::getLanguageList();
+		}catch(LanguageNotFoundException $e){
 			$this->error("No language files found, please use provided builds or clone the repository recursively.");
 			return false;
 		}
@@ -69,14 +68,14 @@ class SetupWizard{
 		}
 
 		do{
-			$lang = strtolower($this->getInput("Language", "eng"));
+			$lang = strtolower($this->getInput("Language", "en"));
 			if(!isset($langs[$lang])){
 				$this->error("Couldn't find the language");
 				$lang = null;
 			}
 		}while($lang === null);
 
-		$this->lang = new BaseLang($lang);
+		$this->lang = new Language($lang);
 
 		$this->message($this->lang->get("language_has_been_selected"));
 
@@ -126,13 +125,13 @@ LICENSE;
 		return true;
 	}
 
-	private function welcome(){
+	private function welcome() : void{
 		$this->message($this->lang->get("setting_up_server_now"));
 		$this->message($this->lang->get("default_values_info"));
 		$this->message($this->lang->get("server_properties"));
 	}
 
-	private function generateBaseConfig(){
+	private function generateBaseConfig() : void{
 		$config = new Config(\pocketmine\DATA . "server.properties", Config::PROPERTIES);
 
 		$config->set("motd", ($name = $this->getInput($this->lang->get("name_your_server"), self::DEFAULT_NAME)));
@@ -160,18 +159,10 @@ LICENSE;
 
 		$config->set("max-players", (int) $this->getInput($this->lang->get("max_players"), (string) self::DEFAULT_PLAYERS));
 
-		$this->message($this->lang->get("spawn_protection_info"));
-
-		if(strtolower($this->getInput($this->lang->get("spawn_protection"), "y", "Y/n")) === "n"){
-			$config->set("spawn-protection", -1);
-		}else{
-			$config->set("spawn-protection", 16);
-		}
-
 		$config->save();
 	}
 
-	private function generateUserFiles(){
+	private function generateUserFiles() : void{
 		$this->message($this->lang->get("op_info"));
 
 		$op = strtolower($this->getInput($this->lang->get("op_who"), ""));
@@ -195,7 +186,7 @@ LICENSE;
 		$config->save();
 	}
 
-	private function networkFunctions(){
+	private function networkFunctions() : void{
 		$config = new Config(\pocketmine\DATA . "server.properties", Config::PROPERTIES);
 		$this->error($this->lang->get("query_warning1"));
 		$this->error($this->lang->get("query_warning2"));
@@ -203,23 +194,6 @@ LICENSE;
 			$config->set("enable-query", false);
 		}else{
 			$config->set("enable-query", true);
-		}
-
-		$this->message($this->lang->get("rcon_info"));
-		if(strtolower($this->getInput($this->lang->get("rcon_enable"), "n", "y/N")) === "y"){
-			$config->set("enable-rcon", true);
-			$password = substr(base64_encode(random_bytes(20)), 3, 10);
-			$config->set("rcon.password", $password);
-			$this->message($this->lang->get("rcon_password") . ": " . $password);
-		}else{
-			$config->set("enable-rcon", false);
-		}
-		
-		$this->message("Hardcore mod? y/N");
-		if(strtolower($this->getInput("hardcore", "n", "y/N")) === "y"){
-			$config->set("hardcore", true);
-		}else{
-			$config->set("hardcore", false);
 		}
 
 		$config->save();
@@ -242,7 +216,7 @@ LICENSE;
 		$this->readLine();
 	}
 
-	private function endWizard(){
+	private function endWizard() : void{
 		$this->message($this->lang->get("you_have_finished"));
 		$this->message($this->lang->get("pocketmine_plugins"));
 		$this->message($this->lang->translateString("pocketmine_will_start", [\pocketmine\NAME]));
@@ -253,7 +227,7 @@ LICENSE;
 		sleep(4);
 	}
 
-	private function writeLine(string $line = ""){
+	private function writeLine(string $line = "") : void{
 		echo $line . PHP_EOL;
 	}
 
@@ -261,11 +235,11 @@ LICENSE;
 		return trim((string) fgets(STDIN));
 	}
 
-	private function message(string $message){
+	private function message(string $message) : void{
 		$this->writeLine("[*] " . $message);
 	}
 
-	private function error(string $message){
+	private function error(string $message) : void{
 		$this->writeLine("[!] " . $message);
 	}
 

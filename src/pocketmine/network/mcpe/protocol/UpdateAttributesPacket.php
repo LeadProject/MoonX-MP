@@ -27,9 +27,10 @@ namespace pocketmine\network\mcpe\protocol;
 
 
 use pocketmine\entity\Attribute;
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
+use function array_values;
 
-class UpdateAttributesPacket extends DataPacket{
+class UpdateAttributesPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::UPDATE_ATTRIBUTES_PACKET;
 
 	/** @var int */
@@ -37,17 +38,30 @@ class UpdateAttributesPacket extends DataPacket{
 	/** @var Attribute[] */
 	public $entries = [];
 
-	protected function decodePayload(){
+	/**
+	 * @param int         $entityRuntimeId
+	 * @param Attribute[] $attributes
+	 *
+	 * @return UpdateAttributesPacket
+	 */
+	public static function create(int $entityRuntimeId, array $attributes) : self{
+		$result = new self;
+		$result->entityRuntimeId = $entityRuntimeId;
+		$result->entries = $attributes;
+		return $result;
+	}
+
+	protected function decodePayload() : void{
 		$this->entityRuntimeId = $this->getEntityRuntimeId();
 		$this->entries = $this->getAttributeList();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putEntityRuntimeId($this->entityRuntimeId);
-		$this->putAttributeList(...$this->entries);
+		$this->putAttributeList(...array_values($this->entries));
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleUpdateAttributes($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleUpdateAttributes($this);
 	}
 }

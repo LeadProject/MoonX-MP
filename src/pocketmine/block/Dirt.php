@@ -25,39 +25,20 @@ namespace pocketmine\block;
 
 use pocketmine\item\Hoe;
 use pocketmine\item\Item;
-use pocketmine\Player;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
+use pocketmine\player\Player;
 
 class Dirt extends Solid{
 
-	protected $id = self::DIRT;
-
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.5, BlockToolType::SHOVEL));
 	}
 
-	public function getHardness() : float{
-		return 0.5;
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_SHOVEL;
-	}
-
-	public function getName() : string{
-		if($this->meta === 1){
-			return "Coarse Dirt";
-		}
-		return "Dirt";
-	}
-
-	public function onActivate(Item $item, Player $player = null) : bool{
-		if($item instanceof Hoe){
+	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		if($face === Facing::UP and $item instanceof Hoe){
 			$item->applyDamage(1);
-			if($this->meta === 1){
-				$this->getLevel()->setBlock($this, BlockFactory::get(Block::DIRT), true);
-			}else{
-				$this->getLevel()->setBlock($this, BlockFactory::get(Block::FARMLAND), true);
-			}
+			$this->getWorld()->setBlock($this, BlockFactory::get(BlockLegacyIds::FARMLAND));
 
 			return true;
 		}

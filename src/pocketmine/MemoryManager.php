@@ -27,6 +27,7 @@ use pocketmine\event\server\LowMemoryEvent;
 use pocketmine\scheduler\DumpWorkerMemoryTask;
 use pocketmine\scheduler\GarbageCollectionTask;
 use pocketmine\timings\Timings;
+use pocketmine\utils\Process;
 use pocketmine\utils\Utils;
 use function arsort;
 use function count;
@@ -109,13 +110,17 @@ class MemoryManager{
 	/** @var bool */
 	private $dumpWorkers = true;
 
+	/** @var \Logger */
+	private $logger;
+
 	public function __construct(Server $server){
 		$this->server = $server;
+		$this->logger = new \PrefixedLogger($server->getLogger(), "Memory Manager");
 
 		$this->init();
 	}
 
-	private function init(){
+	private function init() : void{
 		$this->memoryLimit = ((int) $this->server->getProperty("memory.main-limit", 0)) * 1024 * 1024;
 
 		$defaultMemory = 1024;
@@ -177,6 +182,13 @@ class MemoryManager{
 	}
 
 	/**
+	 * @return int
+	 */
+	public function getGlobalMemoryLimit() : int{
+		return $this->globalMemoryLimit;
+	}
+
+	/**
 	 * @return bool
 	 */
 	public function canUseChunkCache() : bool{
@@ -202,18 +214,18 @@ class MemoryManager{
 	 * @param bool $global
 	 * @param int  $triggerCount
 	 */
-	public function trigger(int $memory, int $limit, bool $global = false, int $triggerCount = 0){
-		$this->server->getLogger()->debug(sprintf("[Memory Manager] %sLow memory triggered, limit %gMB, using %gMB",
+	public function trigger(int $memory, int $limit, bool $global = false, int $triggerCount = 0) : void{
+		$this->logger->debug(sprintf("%sLow memory triggered, limit %gMB, using %gMB",
 			$global ? "Global " : "", round(($limit / 1024) / 1024, 2), round(($memory / 1024) / 1024, 2)));
 		if($this->lowMemClearWorldCache){
-			foreach($this->server->getLevels() as $level){
-				$level->clearCache(true);
+			foreach($this->server->getWorldManager()->getWorlds() as $world){
+				$world->clearCache(true);
 			}
 		}
 
 		if($this->lowMemChunkGC){
-			foreach($this->server->getLevels() as $level){
-				$level->doChunkGarbageCollection();
+			foreach($this->server->getWorldManager()->getWorlds() as $world){
+				$world->doChunkGarbageCollection();
 			}
 		}
 
@@ -225,18 +237,18 @@ class MemoryManager{
 			$cycles = $this->triggerGarbageCollector();
 		}
 
-		$this->server->getLogger()->debug(sprintf("[Memory Manager] Freed %gMB, $cycles cycles", round(($ev->getMemoryFreed() / 1024) / 1024, 2)));
+		$this->logger->debug(sprintf("Freed %gMB, $cycles cycles", round(($ev->getMemoryFreed() / 1024) / 1024, 2)));
 	}
 
 	/**
 	 * Called every tick to update the memory manager state.
 	 */
-	public function check(){
+	public function check() : void{
 		Timings::$memoryManagerTimer->startTiming();
 
 		if(($this->memoryLimit > 0 or $this->globalMemoryLimit > 0) and ++$this->checkTicker >= $this->checkRate){
 			$this->checkTicker = 0;
-			$memory = Utils::getMemoryUsage(true);
+			$memory = Process::getMemoryUsage(true);
 			$trigger = false;
 			if($this->memoryLimit > 0 and $memory[0] > $this->memoryLimit){
 				$trigger = 0;
@@ -277,7 +289,7 @@ class MemoryManager{
 		if($this->garbageCollectionAsync){
 			$pool = $this->server->getAsyncPool();
 			if(($w = $pool->shutdownUnusedWorkers()) > 0){
-				$this->server->getLogger()->debug("Shut down $w idle async pool workers");
+				$this->logger->debug("Shut down $w idle async pool workers");
 			}
 			foreach($pool->getRunningWorkers() as $i){
 				$pool->submitTaskToWorker(new GarbageCollectionTask(), $i);
@@ -298,9 +310,10 @@ class MemoryManager{
 	 * @param int    $maxNesting
 	 * @param int    $maxStringSize
 	 */
-	public function dumpServerMemory(string $outputFolder, int $maxNesting, int $maxStringSize){
-		$this->server->getLogger()->notice("[Dump] After the memory dump is done, the server might crash");
-		self::dumpMemory($this->server, $outputFolder, $maxNesting, $maxStringSize, $this->server->getLogger());
+	public function dumpServerMemory(string $outputFolder, int $maxNesting, int $maxStringSize) : void{
+		$logger = new \PrefixedLogger($this->server->getLogger(), "Memory Dump");
+		$logger->notice("After the memory dump is done, the server might crash");
+		self::dumpMemory($this->server, $outputFolder, $maxNesting, $maxStringSize, $logger);
 
 		if($this->dumpWorkers){
 			$pool = $this->server->getAsyncPool();
@@ -321,7 +334,7 @@ class MemoryManager{
 	 *
 	 * @throws \ReflectionException
 	 */
-	public static function dumpMemory($startingObject, string $outputFolder, int $maxNesting, int $maxStringSize, \Logger $logger){
+	public static function dumpMemory($startingObject, string $outputFolder, int $maxNesting, int $maxStringSize, \Logger $logger) : void{
 		$hardLimit = ini_get('memory_limit');
 		ini_set('memory_limit', '-1');
 		gc_disable();
@@ -365,7 +378,7 @@ class MemoryManager{
 		}
 
 		file_put_contents($outputFolder . "/staticProperties.js", json_encode($staticProperties, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
-		$logger->info("[Dump] Wrote $staticCount static properties");
+		$logger->info("Wrote $staticCount static properties");
 
 		if(isset($GLOBALS)){ //This might be null if we're on a different thread
 			$globalVariables = [];
@@ -393,7 +406,7 @@ class MemoryManager{
 			}
 
 			file_put_contents($outputFolder . "/globalVariables.js", json_encode($globalVariables, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
-			$logger->info("[Dump] Wrote $globalCount global variables");
+			$logger->info("Wrote $globalCount global variables");
 		}
 
 		self::continueDump($startingObject, $data, $objects, $refCounts, 0, $maxNesting, $maxStringSize);
@@ -454,7 +467,7 @@ class MemoryManager{
 
 		}while($continue);
 
-		$logger->info("[Dump] Wrote " . count($objects) . " objects");
+		$logger->info("Wrote " . count($objects) . " objects");
 
 		fclose($obData);
 
@@ -464,7 +477,7 @@ class MemoryManager{
 		arsort($instanceCounts, SORT_NUMERIC);
 		file_put_contents($outputFolder . "/instanceCounts.js", json_encode($instanceCounts, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
 
-		$logger->info("[Dump] Finished!");
+		$logger->info("Finished!");
 
 		ini_set('memory_limit', $hardLimit);
 		gc_enable();
@@ -479,7 +492,7 @@ class MemoryManager{
 	 * @param int      $maxNesting
 	 * @param int      $maxStringSize
 	 */
-	private static function continueDump($from, &$data, array &$objects, array &$refCounts, int $recursion, int $maxNesting, int $maxStringSize){
+	private static function continueDump($from, &$data, array &$objects, array &$refCounts, int $recursion, int $maxNesting, int $maxStringSize) : void{
 		if($maxNesting <= 0){
 			$data = "(error) NESTING LIMIT REACHED";
 			return;

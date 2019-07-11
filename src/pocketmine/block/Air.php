@@ -23,31 +23,15 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
-use pocketmine\item\Item;
 use pocketmine\math\AxisAlignedBB;
-
 
 /**
  * Air block
  */
 class Air extends Transparent{
 
-	protected $id = self::AIR;
-
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
-	}
-
-	public function getName() : string{
-		return "Air";
-	}
-
-	public function canPassThrough() : bool{
-		return true;
-	}
-
-	public function isBreakable(Item $item) : bool{
-		return false;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? BlockBreakInfo::indestructible(0.0));
 	}
 
 	public function canBeFlowedInto() : bool{
@@ -72,13 +56,5 @@ class Air extends Transparent{
 
 	public function getCollisionBoxes() : array{
 		return [];
-	}
-
-	public function getHardness() : float{
-		return -1;
-	}
-
-	public function getBlastResistance() : float{
-		return 0;
 	}
 }

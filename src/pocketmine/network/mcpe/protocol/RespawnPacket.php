@@ -27,23 +27,29 @@ namespace pocketmine\network\mcpe\protocol;
 
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class RespawnPacket extends DataPacket{
+class RespawnPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::RESPAWN_PACKET;
 
 	/** @var Vector3 */
 	public $position;
 
-	protected function decodePayload(){
+	public static function create(Vector3 $position) : self{
+		$result = new self;
+		$result->position = $position->asVector3();
+		return $result;
+	}
+
+	protected function decodePayload() : void{
 		$this->position = $this->getVector3();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putVector3($this->position);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleRespawn($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleRespawn($this);
 	}
 }

@@ -1,53 +1,84 @@
 <?php
 
 /*
-    _____ _                 _        __  __ _____
-  / ____| |               | |      |  \/  |  __ \
- | |    | | ___  _   _  __| |______| \  / | |__) |
- | |    | |/ _ \| | | |/ _` |______| |\/| |  ___/
- | |____| | (_) | |_| | (_| |      | |  | | |
-  \_____|_|\___/ \__,_|\__,_|      |_|  |_|_|
+ *
+ *  ____            _        _   __  __ _                  __  __ ____
+ * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
+ * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
+ * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
+ * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * @author PocketMine Team
+ * @link http://www.pocketmine.net/
+ *
+ *
+*/
 
-     Make of Things.
- */
+declare(strict_types=1);
 
- declare(strict_types=1);
- namespace pocketmine\block;
- use pocketmine\block\utils\PillarRotationHelper;
- use pocketmine\item\Item;
- use pocketmine\math\Vector3;
- use pocketmine\Player;
- class Kelp extends Solid{
+namespace pocketmine\block;
 
- 	protected $id = 393;
- 	public function __construct(int $meta = 0){
- 		$this->meta = $meta;
- 	}
- 	public function getHardness() : float{
- 		return 2;
- 	}
- 	public function getName() : string{
- 		return "Kelp";
- 	}
+use pocketmine\block\utils\BlockDataValidator;
+use pocketmine\event\block\BlockGrowEvent;
+use pocketmine\item\Fertilizer;
+use pocketmine\item\Item;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
+use pocketmine\Player;
 
-  public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-				$this->getLevel()->setBlock($this, $this, true);
-        return true;
+class Kelp extends Flowable{
+
+	/** @var int */
+	protected $age = 0;
+
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? BlockBreakInfo::instant());
 	}
 
- 	public function getVariantBitmask() : int{
- 		return 0x03;
- 	}
- 	public function getToolType() : int{
- 		return BlockToolType::TYPE_SHEARS;
- 	}
- 	public function getFuelTime() : int{
- 		return 10;
- 	}
- 	public function getFlameEncouragement() : int{
- 		return 5;
- 	}
- 	public function getFlammability() : int{
- 		return 5;
- 	}
- }
+	protected function writeStateToMeta() : int{
+		return $this->age;
+	}
+
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->age = BlockDataValidator::readBoundedInt("age", $stateMeta, 0, 15);
+	}
+
+	public function getStateBitmask() : int{
+		return 0b1111;
+	}
+
+	public function onNearbyBlockChange() : void{
+		$down = $this->getSide(Facing::DOWN);
+		if($down->isTransparent() and $down->getId() !== BlockLegacyIds::SUGARCANE_BLOCK){
+			$this->getWorld()->useBreakOn($this);
+		}
+	}
+
+	public function ticksRandomly() : bool{
+		return true;
+	}
+
+	public function onRandomTick() : void{
+		if($this->getSide(Facing::DOWN)->getId() !== BlockLegacyIds::KELP){
+			if($this->age === 15){
+				for($y = 1; $y <= 15; ++$y){
+					$b = $this->getWorld()->getBlockAt($this->x, $this->y + $y, $this->z);
+					if($b->getId() === BlockLegacyIds::WATER){
+						$this->getWorld()->setBlock($b, BlockFactory::get(BlockLegacyIds::KELP));
+						break;
+					}
+				}
+				$this->age = 0;
+				$this->getWorld()->setBlock($this, $this);
+			}else{
+				++$this->age;
+				$this->getWorld()->setBlock($this, $this);
+			}
+		}
+	}
+}

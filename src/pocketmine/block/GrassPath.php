@@ -26,42 +26,21 @@ namespace pocketmine\block;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
 use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Vector3;
+use pocketmine\math\Facing;
 
 class GrassPath extends Transparent{
 
-	protected $id = self::GRASS_PATH;
-
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
-	}
-
-	public function getName() : string{
-		return "Grass Path";
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_SHOVEL;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.6, BlockToolType::SHOVEL));
 	}
 
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
-		return new AxisAlignedBB(
-			$this->x,
-			$this->y,
-			$this->z,
-			$this->x + 1,
-			$this->y + 1, //TODO: this should be 0.9375, but MCPE currently treats them as a full block (https://bugs.mojang.com/browse/MCPE-12109)
-			$this->z + 1
-		);
-	}
-
-	public function getHardness() : float{
-		return 0.6;
+		return AxisAlignedBB::one(); //TODO: this should be trimmed at the top by 1/16, but MCPE currently treats them as a full block (https://bugs.mojang.com/browse/MCPE-12109)
 	}
 
 	public function onNearbyBlockChange() : void{
-		if($this->getSide(Vector3::SIDE_UP)->isSolid()){
-			$this->level->setBlock($this, BlockFactory::get(Block::DIRT), true);
+		if($this->getSide(Facing::UP)->isSolid()){
+			$this->world->setBlock($this, BlockFactory::get(BlockLegacyIds::DIRT));
 		}
 	}
 

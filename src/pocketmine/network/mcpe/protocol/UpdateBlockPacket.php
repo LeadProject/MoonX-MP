@@ -26,19 +26,10 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class UpdateBlockPacket extends DataPacket{
+class UpdateBlockPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::UPDATE_BLOCK_PACKET;
-
-	public const FLAG_NONE      = 0b0000;
-	public const FLAG_NEIGHBORS = 0b0001;
-	public const FLAG_NETWORK   = 0b0010;
-	public const FLAG_NOGRAPHIC = 0b0100;
-	public const FLAG_PRIORITY  = 0b1000;
-
-	public const FLAG_ALL = self::FLAG_NEIGHBORS | self::FLAG_NETWORK;
-	public const FLAG_ALL_PRIORITY = self::FLAG_ALL | self::FLAG_PRIORITY;
 
 	public const DATA_LAYER_NORMAL = 0;
 	public const DATA_LAYER_LIQUID = 1;
@@ -51,26 +42,38 @@ class UpdateBlockPacket extends DataPacket{
 	public $y;
 	/** @var int */
 	public $blockRuntimeId;
-	/** @var int */
-	public $flags;
+	/**
+	 * @var int
+	 * Flags are used by MCPE internally for block setting, but only flag 2 (network flag) is relevant for network.
+	 * This field is pointless really.
+	 */
+	public $flags = 0x02;
 	/** @var int */
 	public $dataLayerId = self::DATA_LAYER_NORMAL;
 
-	protected function decodePayload(){
+	public static function create(int $x, int $y, int $z, int $blockRuntimeId, int $dataLayerId = self::DATA_LAYER_NORMAL) : self{
+		$result = new self;
+		[$result->x, $result->y, $result->z] = [$x, $y, $z];
+		$result->blockRuntimeId = $blockRuntimeId;
+		$result->dataLayerId = $dataLayerId;
+		return $result;
+	}
+
+	protected function decodePayload() : void{
 		$this->getBlockPosition($this->x, $this->y, $this->z);
 		$this->blockRuntimeId = $this->getUnsignedVarInt();
 		$this->flags = $this->getUnsignedVarInt();
 		$this->dataLayerId = $this->getUnsignedVarInt();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putBlockPosition($this->x, $this->y, $this->z);
 		$this->putUnsignedVarInt($this->blockRuntimeId);
 		$this->putUnsignedVarInt($this->flags);
 		$this->putUnsignedVarInt($this->dataLayerId);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleUpdateBlock($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleUpdateBlock($this);
 	}
 }

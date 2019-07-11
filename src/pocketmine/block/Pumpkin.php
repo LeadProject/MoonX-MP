@@ -23,40 +23,39 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
+use pocketmine\math\Bearing;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
-use pocketmine\Player;
+use pocketmine\player\Player;
+use pocketmine\world\BlockTransaction;
 
 class Pumpkin extends Solid{
 
-	protected $id = self::PUMPKIN;
+	/** @var int */
+	protected $facing = Facing::NORTH;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(1.0, BlockToolType::AXE));
 	}
 
-	public function getHardness() : float{
-		return 1;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->facing = BlockDataValidator::readLegacyHorizontalFacing($stateMeta & 0x03);
 	}
 
-	public function getToolType() : int{
-		return BlockToolType::TYPE_AXE;
+	protected function writeStateToMeta() : int{
+		return Bearing::fromFacing($this->facing);
 	}
 
-	public function getName() : string{
-		return "Pumpkin";
+	public function getStateBitmask() : int{
+		return 0b11;
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		if($player instanceof Player){
-			$this->meta = ((int) $player->getDirection() + 1) % 4;
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		if($player !== null){
+			$this->facing = Facing::opposite($player->getHorizontalFacing());
 		}
-		$this->getLevel()->setBlock($blockReplace, $this, true, true);
-
-		return true;
-	}
-
-	public function getVariantBitmask() : int{
-		return 0;
+		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 	}
 }

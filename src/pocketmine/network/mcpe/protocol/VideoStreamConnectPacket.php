@@ -25,9 +25,9 @@ namespace pocketmine\network\mcpe\protocol;
 
 #include <rules/DataPacket.h>
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class VideoStreamConnectPacket extends DataPacket/* implements ClientboundPacket*/{
+class VideoStreamConnectPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::VIDEO_STREAM_CONNECT_PACKET;
 
 	public const ACTION_CONNECT = 0;
@@ -52,7 +52,7 @@ class VideoStreamConnectPacket extends DataPacket/* implements ClientboundPacket
 		$this->putByte($this->action);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleVideoStreamConnect($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleVideoStreamConnect($this);
 	}
 }

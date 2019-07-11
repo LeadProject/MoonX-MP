@@ -26,9 +26,9 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 use pocketmine\item\Item;
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class InventorySlotPacket extends DataPacket{
+class InventorySlotPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::INVENTORY_SLOT_PACKET;
 
 	/** @var int */
@@ -38,19 +38,27 @@ class InventorySlotPacket extends DataPacket{
 	/** @var Item */
 	public $item;
 
-	protected function decodePayload(){
+	public static function create(int $windowId, int $slot, Item $item) : self{
+		$result = new self;
+		$result->inventorySlot = $slot;
+		$result->item = $item;
+		$result->windowId = $windowId;
+		return $result;
+	}
+
+	protected function decodePayload() : void{
 		$this->windowId = $this->getUnsignedVarInt();
 		$this->inventorySlot = $this->getUnsignedVarInt();
 		$this->item = $this->getSlot();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putUnsignedVarInt($this->windowId);
 		$this->putUnsignedVarInt($this->inventorySlot);
 		$this->putSlot($this->item);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleInventorySlot($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleInventorySlot($this);
 	}
 }

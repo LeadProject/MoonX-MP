@@ -26,15 +26,15 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class ContainerSetDataPacket extends DataPacket{
+class ContainerSetDataPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::CONTAINER_SET_DATA_PACKET;
 
-	public const PROPERTY_FURNACE_TICK_COUNT = 0;
-	public const PROPERTY_FURNACE_LIT_TIME = 1;
-	public const PROPERTY_FURNACE_LIT_DURATION = 2;
-	//TODO: check property 3
+	public const PROPERTY_FURNACE_SMELT_PROGRESS = 0;
+	public const PROPERTY_FURNACE_REMAINING_FUEL_TIME = 1;
+	public const PROPERTY_FURNACE_MAX_FUEL_TIME = 2;
+	public const PROPERTY_FURNACE_STORED_XP = 3;
 	public const PROPERTY_FURNACE_FUEL_AUX = 4;
 
 	public const PROPERTY_BREWING_STAND_BREW_TIME = 0;
@@ -48,19 +48,27 @@ class ContainerSetDataPacket extends DataPacket{
 	/** @var int */
 	public $value;
 
-	protected function decodePayload(){
+	public static function create(int $windowId, int $propertyId, int $value) : self{
+		$result = new self;
+		$result->property = $propertyId;
+		$result->value = $value;
+		$result->windowId = $windowId;
+		return $result;
+	}
+
+	protected function decodePayload() : void{
 		$this->windowId = $this->getByte();
 		$this->property = $this->getVarInt();
 		$this->value = $this->getVarInt();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putByte($this->windowId);
 		$this->putVarInt($this->property);
 		$this->putVarInt($this->value);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleContainerSetData($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleContainerSetData($this);
 	}
 }

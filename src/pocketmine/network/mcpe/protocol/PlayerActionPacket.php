@@ -26,9 +26,9 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class PlayerActionPacket extends DataPacket{
+class PlayerActionPacket extends DataPacket implements ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::PLAYER_ACTION_PACKET;
 
 	public const ACTION_START_BREAK = 0;
@@ -70,21 +70,21 @@ class PlayerActionPacket extends DataPacket{
 	/** @var int */
 	public $face;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->entityRuntimeId = $this->getEntityRuntimeId();
 		$this->action = $this->getVarInt();
 		$this->getBlockPosition($this->x, $this->y, $this->z);
 		$this->face = $this->getVarInt();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putEntityRuntimeId($this->entityRuntimeId);
 		$this->putVarInt($this->action);
 		$this->putBlockPosition($this->x, $this->y, $this->z);
 		$this->putVarInt($this->face);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handlePlayerAction($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handlePlayerAction($this);
 	}
 }

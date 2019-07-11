@@ -29,22 +29,8 @@ use function mt_rand;
 
 class Glowstone extends Transparent{
 
-	protected $id = self::GLOWSTONE;
-
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
-	}
-
-	public function getName() : string{
-		return "Glowstone";
-	}
-
-	public function getHardness() : float{
-		return 0.3;
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_PICKAXE;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.3, BlockToolType::PICKAXE));
 	}
 
 	public function getLightLevel() : int{

@@ -26,33 +26,48 @@ namespace pocketmine\block;
 use pocketmine\entity\Entity;
 use pocketmine\item\Item;
 use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
-use pocketmine\Player;
-use function max;
-use function min;
+use pocketmine\player\Player;
+use pocketmine\world\BlockTransaction;
+use function array_intersect_key;
+use function array_keys;
+use function count;
 
 class Vine extends Flowable{
-	public const FLAG_SOUTH = 0x01;
-	public const FLAG_WEST = 0x02;
-	public const FLAG_NORTH = 0x04;
-	public const FLAG_EAST = 0x08;
 
-	protected $id = self::VINE;
+	/** @var bool[] */
+	protected $faces = [];
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.2, BlockToolType::AXE));
 	}
 
-	public function getName() : string{
-		return "Vines";
+	protected function writeStateToMeta() : int{
+		return
+			(isset($this->faces[Facing::SOUTH]) ? BlockLegacyMetadata::VINE_FLAG_SOUTH : 0) |
+			(isset($this->faces[Facing::WEST]) ? BlockLegacyMetadata::VINE_FLAG_WEST : 0) |
+			(isset($this->faces[Facing::NORTH]) ? BlockLegacyMetadata::VINE_FLAG_NORTH : 0) |
+			(isset($this->faces[Facing::EAST]) ? BlockLegacyMetadata::VINE_FLAG_EAST : 0);
 	}
 
-	public function getHardness() : float{
-		return 0.2;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->setFaceFromMeta($stateMeta, BlockLegacyMetadata::VINE_FLAG_SOUTH, Facing::SOUTH);
+		$this->setFaceFromMeta($stateMeta, BlockLegacyMetadata::VINE_FLAG_WEST, Facing::WEST);
+		$this->setFaceFromMeta($stateMeta, BlockLegacyMetadata::VINE_FLAG_NORTH, Facing::NORTH);
+		$this->setFaceFromMeta($stateMeta, BlockLegacyMetadata::VINE_FLAG_EAST, Facing::EAST);
 	}
 
-	public function canPassThrough() : bool{
-		return true;
+	public function getStateBitmask() : int{
+		return 0b1111;
+	}
+
+	private function setFaceFromMeta(int $meta, int $flag, int $face) : void{
+		if(($meta & $flag) !== 0){
+			$this->faces[$face] = true;
+		}else{
+			unset($this->faces[$face]);
+		}
 	}
 
 	public function hasEntityCollision() : bool{
@@ -67,119 +82,55 @@ class Vine extends Flowable{
 		return true;
 	}
 
-	public function onEntityCollide(Entity $entity) : void{
+	public function onEntityInside(Entity $entity) : void{
 		$entity->resetFallDistance();
 	}
 
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
-
-		$minX = 1;
-		$minY = 1;
-		$minZ = 1;
-		$maxX = 0;
-		$maxY = 0;
-		$maxZ = 0;
-
-		$flag = $this->meta > 0;
-
-		if(($this->meta & self::FLAG_WEST) > 0){
-			$maxX = max($maxX, 0.0625);
-			$minX = 0;
-			$minY = 0;
-			$maxY = 1;
-			$minZ = 0;
-			$maxZ = 1;
-			$flag = true;
+		switch(count($this->faces)){
+			case 0:
+				return AxisAlignedBB::one()->trim(Facing::DOWN, 15 / 16);
+			case 1:
+				return AxisAlignedBB::one()->trim(Facing::opposite(array_keys($this->faces)[0]), 15 / 16);
+			default:
+				return AxisAlignedBB::one();
 		}
-
-		if(($this->meta & self::FLAG_EAST) > 0){
-			$minX = min($minX, 0.9375);
-			$maxX = 1;
-			$minY = 0;
-			$maxY = 1;
-			$minZ = 0;
-			$maxZ = 1;
-			$flag = true;
-		}
-
-		if(($this->meta & self::FLAG_SOUTH) > 0){
-			$minZ = min($minZ, 0.9375);
-			$maxZ = 1;
-			$minX = 0;
-			$maxX = 1;
-			$minY = 0;
-			$maxY = 1;
-			$flag = true;
-		}
-
-		//TODO: Missing NORTH check
-
-		if(!$flag and $this->getSide(Vector3::SIDE_UP)->isSolid()){
-			$minY = min($minY, 0.9375);
-			$maxY = 1;
-			$minX = 0;
-			$maxX = 1;
-			$minZ = 0;
-			$maxZ = 1;
-		}
-
-		return new AxisAlignedBB(
-			$this->x + $minX,
-			$this->y + $minY,
-			$this->z + $minZ,
-			$this->x + $maxX,
-			$this->y + $maxY,
-			$this->z + $maxZ
-		);
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		if(!$blockClicked->isSolid() or $face === Vector3::SIDE_UP or $face === Vector3::SIDE_DOWN){
+	protected function recalculateCollisionBoxes() : array{
+		return [];
+	}
+
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		if(!$blockClicked->isSolid() or Facing::axis($face) === Facing::AXIS_Y){
 			return false;
 		}
 
-		$faces = [
-			Vector3::SIDE_NORTH => self::FLAG_SOUTH,
-			Vector3::SIDE_SOUTH => self::FLAG_NORTH,
-			Vector3::SIDE_WEST => self::FLAG_EAST,
-			Vector3::SIDE_EAST => self::FLAG_WEST
-		];
+		$this->faces = $blockReplace instanceof Vine ? $blockReplace->faces : [];
+		$this->faces[Facing::opposite($face)] = true;
 
-		$this->meta = $faces[$face] ?? 0;
-		if($blockReplace->getId() === $this->getId()){
-			$this->meta |= $blockReplace->meta;
-		}
-
-		$this->getLevel()->setBlock($blockReplace, $this, true, true);
-		return true;
+		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 	}
 
 	public function onNearbyBlockChange() : void{
-		$sides = [
-			self::FLAG_SOUTH => Vector3::SIDE_SOUTH,
-			self::FLAG_WEST => Vector3::SIDE_WEST,
-			self::FLAG_NORTH => Vector3::SIDE_NORTH,
-			self::FLAG_EAST => Vector3::SIDE_EAST
-		];
+		$changed = false;
 
-		$meta = $this->meta;
+		$up = $this->getSide(Facing::UP);
+		//check which faces have corresponding vines in the block above
+		$supportedFaces = $up instanceof Vine ? array_intersect_key($this->faces, $up->faces) : [];
 
-		foreach($sides as $flag => $side){
-			if(($meta & $flag) === 0){
-				continue;
-			}
-
-			if(!$this->getSide($side)->isSolid()){
-				$meta &= ~$flag;
+		foreach($this->faces as $face => $bool){
+			if(!isset($supportedFaces[$face]) and !$this->getSide($face)->isSolid()){
+				unset($this->faces[$face]);
+				$changed = true;
 			}
 		}
 
-		if($meta !== $this->meta){
-			if($meta === 0){
-				$this->level->useBreakOn($this);
+		if($changed){
+			if(empty($this->faces)){
+				$this->world->useBreakOn($this);
 			}else{
-				$this->meta = $meta;
-				$this->level->setBlock($this, $this);
+				$this->world->setBlock($this, $this);
 			}
 		}
 	}
@@ -192,20 +143,12 @@ class Vine extends Flowable{
 		//TODO: vine growth
 	}
 
-	public function getVariantBitmask() : int{
-		return 0;
-	}
-
 	public function getDrops(Item $item) : array{
-		if($item->getBlockToolType() & BlockToolType::TYPE_SHEARS){
+		if($item->getBlockToolType() & BlockToolType::SHEARS){
 			return $this->getDropsForCompatibleTool($item);
 		}
 
 		return [];
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_AXE;
 	}
 
 	public function getFlameEncouragement() : int{

@@ -23,82 +23,94 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
 use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
-use pocketmine\Player;
+use pocketmine\player\Player;
+use pocketmine\world\BlockTransaction;
 
-abstract class Stair extends Transparent{
+class Stair extends Transparent{
+	private const SHAPE_STRAIGHT = "straight";
+	private const SHAPE_INNER_LEFT = "inner_left";
+	private const SHAPE_INNER_RIGHT = "inner_right";
+	private const SHAPE_OUTER_LEFT = "outer_left";
+	private const SHAPE_OUTER_RIGHT = "outer_right";
+
+	/** @var int */
+	protected $facing = Facing::NORTH;
+	/** @var bool */
+	protected $upsideDown = false;
+	/** @var string */
+	protected $shape = self::SHAPE_STRAIGHT;
+
+	protected function writeStateToMeta() : int{
+		return (5 - $this->facing) | ($this->upsideDown ? BlockLegacyMetadata::STAIR_FLAG_UPSIDE_DOWN : 0);
+	}
+
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->facing = BlockDataValidator::read5MinusHorizontalFacing($stateMeta);
+		$this->upsideDown = ($stateMeta & BlockLegacyMetadata::STAIR_FLAG_UPSIDE_DOWN) !== 0;
+	}
+
+	public function getStateBitmask() : int{
+		return 0b111;
+	}
+
+	public function readStateFromWorld() : void{
+		parent::readStateFromWorld();
+
+		$clockwise = Facing::rotateY($this->facing, true);
+		if(($backFacing = $this->getPossibleCornerFacing(false)) !== null){
+			$this->shape = $backFacing === $clockwise ? self::SHAPE_OUTER_RIGHT : self::SHAPE_OUTER_LEFT;
+		}elseif(($frontFacing = $this->getPossibleCornerFacing(true)) !== null){
+			$this->shape = $frontFacing === $clockwise ? self::SHAPE_INNER_RIGHT : self::SHAPE_INNER_LEFT;
+		}else{
+			$this->shape = self::SHAPE_STRAIGHT;
+		}
+	}
 
 	protected function recalculateCollisionBoxes() : array{
-		//TODO: handle corners
-
-		$minYSlab = ($this->meta & 0x04) === 0 ? 0 : 0.5;
-		$maxYSlab = $minYSlab + 0.5;
-
+		$topStepFace = $this->upsideDown ? Facing::DOWN : Facing::UP;
 		$bbs = [
-			new AxisAlignedBB(
-				$this->x,
-				$this->y + $minYSlab,
-				$this->z,
-				$this->x + 1,
-				$this->y + $maxYSlab,
-				$this->z + 1
-			)
+			AxisAlignedBB::one()->trim($topStepFace, 0.5)
 		];
 
-		$minY = ($this->meta & 0x04) === 0 ? 0.5 : 0;
-		$maxY = $minY + 0.5;
+		$topStep = AxisAlignedBB::one()
+			->trim(Facing::opposite($topStepFace), 0.5)
+			->trim(Facing::opposite($this->facing), 0.5);
 
-		$rotationMeta = $this->meta & 0x03;
-
-		$minX = $minZ = 0;
-		$maxX = $maxZ = 1;
-
-		switch($rotationMeta){
-			case 0:
-				$minX = 0.5;
-				break;
-			case 1:
-				$maxX = 0.5;
-				break;
-			case 2:
-				$minZ = 0.5;
-				break;
-			case 3:
-				$maxZ = 0.5;
-				break;
+		if($this->shape === self::SHAPE_OUTER_LEFT or $this->shape === self::SHAPE_OUTER_RIGHT){
+			$topStep->trim(Facing::rotateY($this->facing, $this->shape === self::SHAPE_OUTER_LEFT), 0.5);
+		}elseif($this->shape === self::SHAPE_INNER_LEFT or $this->shape === self::SHAPE_INNER_RIGHT){
+			//add an extra cube
+			$bbs[] = AxisAlignedBB::one()
+				->trim(Facing::opposite($topStepFace), 0.5)
+				->trim($this->facing, 0.5) //avoid overlapping with main step
+				->trim(Facing::rotateY($this->facing, $this->shape === self::SHAPE_INNER_LEFT), 0.5);
 		}
 
-		$bbs[] = new AxisAlignedBB(
-			$this->x + $minX,
-			$this->y + $minY,
-			$this->z + $minZ,
-			$this->x + $maxX,
-			$this->y + $maxY,
-			$this->z + $maxZ
-		);
+		$bbs[] = $topStep;
 
 		return $bbs;
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		$faces = [
-			0 => 0,
-			1 => 2,
-			2 => 1,
-			3 => 3
-		];
-		$this->meta = $player !== null ? $faces[$player->getDirection()] & 0x03 : 0;
-		if(($clickVector->y > 0.5 and $face !== Vector3::SIDE_UP) or $face === Vector3::SIDE_DOWN){
-			$this->meta |= 0x04; //Upside-down stairs
-		}
-		$this->getLevel()->setBlock($blockReplace, $this, true, true);
-
-		return true;
+	private function getPossibleCornerFacing(bool $oppositeFacing) : ?int{
+		$side = $this->getSide($oppositeFacing ? Facing::opposite($this->facing) : $this->facing);
+		return (
+			$side instanceof Stair and
+			$side->upsideDown === $this->upsideDown and
+			Facing::axis($side->facing) !== Facing::axis($this->facing) //perpendicular
+		) ? $side->facing : null;
 	}
 
-	public function getVariantBitmask() : int{
-		return 0;
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		if($player !== null){
+			$this->facing = $player->getHorizontalFacing();
+		}
+		$this->upsideDown = (($clickVector->y > 0.5 and $face !== Facing::UP) or $face === Facing::DOWN);
+
+		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 	}
 }

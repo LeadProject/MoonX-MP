@@ -45,15 +45,13 @@ class BulkCurlTask extends AsyncTask{
 	 * "timeout", "extraHeaders" and "extraOpts". Documentation of these options are same as those in
 	 * {@link Utils::simpleCurl}.
 	 *
-	 * @param array      $operations
-	 * @param mixed|null $complexData
+	 * @param array $operations
 	 */
-	public function __construct(array $operations, $complexData = null){
-		$this->storeLocal($complexData);
+	public function __construct(array $operations){
 		$this->operations = serialize($operations);
 	}
 
-	public function onRun(){
+	public function onRun() : void{
 		$operations = unserialize($this->operations);
 		$results = [];
 		foreach($operations as $op){

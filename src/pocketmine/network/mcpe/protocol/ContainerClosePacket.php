@@ -26,23 +26,29 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class ContainerClosePacket extends DataPacket{
+class ContainerClosePacket extends DataPacket implements ClientboundPacket, ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::CONTAINER_CLOSE_PACKET;
 
 	/** @var int */
 	public $windowId;
 
-	protected function decodePayload(){
+	public static function create(int $windowId) : self{
+		$result = new self;
+		$result->windowId = $windowId;
+		return $result;
+	}
+
+	protected function decodePayload() : void{
 		$this->windowId = $this->getByte();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putByte($this->windowId);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleContainerClose($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleContainerClose($this);
 	}
 }

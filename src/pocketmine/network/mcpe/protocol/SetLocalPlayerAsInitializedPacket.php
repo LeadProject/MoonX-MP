@@ -25,23 +25,23 @@ namespace pocketmine\network\mcpe\protocol;
 
 #include <rules/DataPacket.h>
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class SetLocalPlayerAsInitializedPacket extends DataPacket{
+class SetLocalPlayerAsInitializedPacket extends DataPacket implements ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::SET_LOCAL_PLAYER_AS_INITIALIZED_PACKET;
 
 	/** @var int */
 	public $entityRuntimeId;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->entityRuntimeId = $this->getEntityRuntimeId();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putEntityRuntimeId($this->entityRuntimeId);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleSetLocalPlayerAsInitialized($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleSetLocalPlayerAsInitialized($this);
 	}
 }

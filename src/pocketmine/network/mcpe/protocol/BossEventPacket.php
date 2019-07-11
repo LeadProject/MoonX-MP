@@ -26,9 +26,9 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class BossEventPacket extends DataPacket{
+class BossEventPacket extends DataPacket implements ClientboundPacket, ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::BOSS_EVENT_PACKET;
 
 	/* S2C: Shows the boss-bar to the player. */
@@ -66,7 +66,60 @@ class BossEventPacket extends DataPacket{
 	/** @var int */
 	public $overlay;
 
-	protected function decodePayload(){
+	private static function base(int $bossEntityUniqueId, int $eventId) : self{
+		$result = new self;
+		$result->bossEid = $bossEntityUniqueId;
+		$result->eventType = $eventId;
+		return $result;
+	}
+
+	public static function show(int $bossEntityUniqueId, string $title, float $healthPercent, int $unknownShort = 0) : self{
+		$result = self::base($bossEntityUniqueId, self::TYPE_SHOW);
+		$result->title = $title;
+		$result->healthPercent = $healthPercent;
+		$result->unknownShort = $unknownShort;
+		$result->color = 0; //hardcoded due to being useless
+		$result->overlay = 0;
+		return $result;
+	}
+
+	public static function hide(int $bossEntityUniqueId) : self{
+		return self::base($bossEntityUniqueId, self::TYPE_HIDE);
+	}
+
+	public static function registerPlayer(int $bossEntityUniqueId, int $playerEntityUniqueId) : self{
+		$result = self::base($bossEntityUniqueId, self::TYPE_REGISTER_PLAYER);
+		$result->playerEid = $playerEntityUniqueId;
+		return $result;
+	}
+
+	public static function unregisterPlayer(int $bossEntityUniqueId, int $playerEntityUniqueId) : self{
+		$result = self::base($bossEntityUniqueId, self::TYPE_UNREGISTER_PLAYER);
+		$result->playerEid = $playerEntityUniqueId;
+		return $result;
+	}
+
+	public static function healthPercent(int $bossEntityUniqueId, float $healthPercent) : self{
+		$result = self::base($bossEntityUniqueId, self::TYPE_HEALTH_PERCENT);
+		$result->healthPercent = $healthPercent;
+		return $result;
+	}
+
+	public static function title(int $bossEntityUniqueId, string $title) : self{
+		$result = self::base($bossEntityUniqueId, self::TYPE_TITLE);
+		$result->title = $title;
+		return $result;
+	}
+
+	public static function unknown6(int $bossEntityUniqueId, int $unknownShort) : self{
+		$result = self::base($bossEntityUniqueId, self::TYPE_UNKNOWN_6);
+		$result->unknownShort = $unknownShort;
+		$result->color = 0; //hardcoded due to being useless
+		$result->overlay = 0;
+		return $result;
+	}
+
+	protected function decodePayload() : void{
 		$this->bossEid = $this->getEntityUniqueId();
 		$this->eventType = $this->getUnsignedVarInt();
 		switch($this->eventType){
@@ -96,7 +149,7 @@ class BossEventPacket extends DataPacket{
 		}
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putEntityUniqueId($this->bossEid);
 		$this->putUnsignedVarInt($this->eventType);
 		switch($this->eventType){
@@ -126,7 +179,7 @@ class BossEventPacket extends DataPacket{
 		}
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleBossEvent($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleBossEvent($this);
 	}
 }

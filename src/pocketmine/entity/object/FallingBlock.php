@@ -25,14 +25,14 @@ namespace pocketmine\entity\object;
 
 use pocketmine\block\Block;
 use pocketmine\block\BlockFactory;
-use pocketmine\block\Fallable;
+use pocketmine\block\utils\Fallable;
 use pocketmine\entity\Entity;
 use pocketmine\event\entity\EntityBlockChangeEvent;
 use pocketmine\event\entity\EntityDamageEvent;
-use pocketmine\item\ItemFactory;
-use pocketmine\level\Position;
 use pocketmine\nbt\tag\ByteTag;
+use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
+use pocketmine\network\mcpe\protocol\types\EntityMetadataProperties;
 use function get_class;
 
 class FallingBlock extends Entity{
@@ -51,28 +51,27 @@ class FallingBlock extends Entity{
 
 	public $canCollide = false;
 
-	protected function initEntity() : void{
-		parent::initEntity();
+	protected function initEntity(CompoundTag $nbt) : void{
+		parent::initEntity($nbt);
 
 		$blockId = 0;
 
 		//TODO: 1.8+ save format
-		if($this->namedtag->hasTag("TileID", IntTag::class)){
-			$blockId = $this->namedtag->getInt("TileID");
-		}elseif($this->namedtag->hasTag("Tile", ByteTag::class)){
-			$blockId = $this->namedtag->getByte("Tile");
-			$this->namedtag->removeTag("Tile");
+		if($nbt->hasTag("TileID", IntTag::class)){
+			$blockId = $nbt->getInt("TileID");
+		}elseif($nbt->hasTag("Tile", ByteTag::class)){
+			$blockId = $nbt->getByte("Tile");
 		}
 
 		if($blockId === 0){
 			throw new \UnexpectedValueException("Invalid " . get_class($this) . " entity: block ID is 0 or missing");
 		}
 
-		$damage = $this->namedtag->getByte("Data", 0);
+		$damage = $nbt->getByte("Data", 0);
 
 		$this->block = BlockFactory::get($blockId, $damage);
 
-		$this->propertyManager->setInt(self::DATA_VARIANT, $this->block->getRuntimeId());
+		$this->propertyManager->setInt(EntityMetadataProperties::VARIANT, $this->block->getRuntimeId());
 	}
 
 	public function canCollideWith(Entity $entity) : bool{
@@ -89,7 +88,7 @@ class FallingBlock extends Entity{
 		}
 	}
 
-	public function entityBaseTick(int $tickDiff = 1) : bool{
+	protected function entityBaseTick(int $tickDiff = 1) : bool{
 		if($this->closed){
 			return false;
 		}
@@ -97,9 +96,9 @@ class FallingBlock extends Entity{
 		$hasUpdate = parent::entityBaseTick($tickDiff);
 
 		if(!$this->isFlaggedForDespawn()){
-			$pos = Position::fromObject($this->add(-$this->width / 2, $this->height, -$this->width / 2)->floor(), $this->getLevel());
+			$pos = $this->add(-$this->width / 2, $this->height, -$this->width / 2)->floor();
 
-			$this->block->position($pos);
+			$this->block->position($this->world, $pos->x, $pos->y, $pos->z);
 
 			$blockTarget = null;
 			if($this->block instanceof Fallable){
@@ -109,15 +108,15 @@ class FallingBlock extends Entity{
 			if($this->onGround or $blockTarget !== null){
 				$this->flagForDespawn();
 
-				$block = $this->level->getBlock($pos);
-				if($block->getId() > 0 and $block->isTransparent() and !$block->canBeReplaced()){
+				$block = $this->world->getBlock($pos);
+				if(($block->isTransparent() and !$block->canBeReplaced()) or !$this->world->isInWorld($pos->getFloorX(), $pos->getFloorY(), $pos->getFloorZ())){
 					//FIXME: anvils are supposed to destroy torches
-					$this->getLevel()->dropItem($this, ItemFactory::get($this->getBlock(), $this->getDamage()));
+					$this->getWorld()->dropItem($this, $this->block->asItem());
 				}else{
 					$ev = new EntityBlockChangeEvent($this, $block, $blockTarget ?? $this->block);
 					$ev->call();
 					if(!$ev->isCancelled()){
-						$this->getLevel()->setBlock($pos, $ev->getTo(), true);
+						$this->getWorld()->setBlock($pos, $ev->getTo());
 					}
 				}
 				$hasUpdate = true;
@@ -127,17 +126,15 @@ class FallingBlock extends Entity{
 		return $hasUpdate;
 	}
 
-	public function getBlock() : int{
-		return $this->block->getId();
+	public function getBlock() : Block{
+		return $this->block;
 	}
 
-	public function getDamage() : int{
-		return $this->block->getDamage();
-	}
+	public function saveNBT() : CompoundTag{
+		$nbt = parent::saveNBT();
+		$nbt->setInt("TileID", $this->block->getId());
+		$nbt->setByte("Data", $this->block->getMeta());
 
-	public function saveNBT() : void{
-		parent::saveNBT();
-		$this->namedtag->setInt("TileID", $this->block->getId(), true);
-		$this->namedtag->setByte("Data", $this->block->getDamage());
+		return $nbt;
 	}
 }

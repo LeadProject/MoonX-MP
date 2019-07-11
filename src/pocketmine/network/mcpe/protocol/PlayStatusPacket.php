@@ -26,9 +26,9 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class PlayStatusPacket extends DataPacket{
+class PlayStatusPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::PLAY_STATUS_PACKET;
 
 	public const LOGIN_SUCCESS = 0;
@@ -43,7 +43,13 @@ class PlayStatusPacket extends DataPacket{
 	/** @var int */
 	public $status;
 
-	protected function decodePayload(){
+	public static function create(int $status) : self{
+		$result = new self;
+		$result->status = $status;
+		return $result;
+	}
+
+	protected function decodePayload() : void{
 		$this->status = $this->getInt();
 	}
 
@@ -51,11 +57,11 @@ class PlayStatusPacket extends DataPacket{
 		return true;
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putInt($this->status);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handlePlayStatus($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handlePlayStatus($this);
 	}
 }

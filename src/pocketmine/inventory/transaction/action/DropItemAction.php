@@ -26,7 +26,7 @@ namespace pocketmine\inventory\transaction\action;
 use pocketmine\event\player\PlayerDropItemEvent;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
-use pocketmine\Player;
+use pocketmine\player\Player;
 
 /**
  * Represents an action involving dropping an item into the world.
@@ -34,7 +34,7 @@ use pocketmine\Player;
 class DropItemAction extends InventoryAction{
 
 	public function __construct(Item $targetItem){
-		parent::__construct(ItemFactory::get(Item::AIR, 0, 0), $targetItem);
+		parent::__construct(ItemFactory::air(), $targetItem);
 	}
 
 	public function isValid(Player $source) : bool{
@@ -55,18 +55,8 @@ class DropItemAction extends InventoryAction{
 	 * Drops the target item in front of the player.
 	 *
 	 * @param Player $source
-	 *
-	 * @return bool
 	 */
-	public function execute(Player $source) : bool{
-		return $source->dropItem($this->targetItem);
-	}
-
-	public function onExecuteSuccess(Player $source) : void{
-
-	}
-
-	public function onExecuteFail(Player $source) : void{
-
+	public function execute(Player $source) : void{
+		$source->dropItem($this->targetItem);
 	}
 }

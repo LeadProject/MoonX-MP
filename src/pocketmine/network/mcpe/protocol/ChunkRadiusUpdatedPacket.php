@@ -26,23 +26,29 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class ChunkRadiusUpdatedPacket extends DataPacket{
+class ChunkRadiusUpdatedPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::CHUNK_RADIUS_UPDATED_PACKET;
 
 	/** @var int */
 	public $radius;
 
-	protected function decodePayload(){
+	public static function create(int $radius) : self{
+		$result = new self;
+		$result->radius = $radius;
+		return $result;
+	}
+
+	protected function decodePayload() : void{
 		$this->radius = $this->getVarInt();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putVarInt($this->radius);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleChunkRadiusUpdated($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleChunkRadiusUpdated($this);
 	}
 }

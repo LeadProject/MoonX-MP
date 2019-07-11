@@ -23,36 +23,30 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
-use pocketmine\item\TieredTool;
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
+use pocketmine\item\TieredTool;
 
 class NetherReactor extends Solid{
-	protected $id = Block::NETHER_REACTOR;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	/** @var int */
+	protected $state = BlockLegacyMetadata::NETHER_REACTOR_INACTIVE;
+
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(3.0, BlockToolType::PICKAXE, TieredTool::TIER_WOODEN));
 	}
 
-	public function getName() : string{
-		static $prefixes = [
-			"",
-			"Active ",
-			"Used "
-		];
-		return ($prefixes[$this->meta] ?? "") . "Nether Reactor Core";
+	protected function writeStateToMeta() : int{
+		return $this->state;
 	}
 
-	public function getToolType() : int{
-		return BlockToolType::TYPE_PICKAXE;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->state = BlockDataValidator::readBoundedInt("state", $stateMeta, 0, 2);
 	}
 
-	public function getToolHarvestLevel() : int{
-		return TieredTool::TIER_WOODEN;
-	}
-
-	public function getHardness() : float{
-		return 3;
+	public function getStateBitmask() : int{
+		return 0b11;
 	}
 
 	public function getDropsForCompatibleTool(Item $item) : array{

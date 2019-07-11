@@ -1,0 +1,108 @@
+<?php
+
+/*
+ *
+ *  ____            _        _   __  __ _                  __  __ ____
+ * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
+ * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
+ * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
+ * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * @author PocketMine Team
+ * @link http://www.pocketmine.net/
+ *
+ *
+*/
+
+declare(strict_types=1);
+
+namespace pocketmine\block\utils;
+
+use pocketmine\block\Block;
+use pocketmine\item\Item;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
+use pocketmine\player\Player;
+use pocketmine\world\BlockTransaction;
+
+trait PillarRotationTrait{
+
+	/** @var int */
+	protected $axis = Facing::AXIS_Y;
+
+	protected function getAxisMetaShift() : int{
+		return 2; //default
+	}
+
+	/**
+	 * @see Block::writeStateToMeta()
+	 * @return int
+	 */
+	protected function writeStateToMeta() : int{
+		return $this->writeAxisToMeta();
+	}
+
+	/**
+	 * @see Block::readStateFromData()
+	 *
+	 * @param int $id
+	 * @param int $stateMeta
+	 */
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->readAxisFromMeta($stateMeta);
+	}
+
+	/**
+	 * @see Block::getStateBitmask()
+	 * @return int
+	 */
+	public function getStateBitmask() : int{
+		return 0b11 << $this->getAxisMetaShift();
+	}
+
+	protected function readAxisFromMeta(int $meta) : void{
+		static $map = [
+			0 => Facing::AXIS_Y,
+			1 => Facing::AXIS_X,
+			2 => Facing::AXIS_Z
+		];
+		$axis = $meta >> $this->getAxisMetaShift();
+		if(!isset($map[$axis])){
+			throw new InvalidBlockStateException("Invalid axis meta $axis");
+		}
+		$this->axis = $map[$axis];
+	}
+
+	protected function writeAxisToMeta() : int{
+		static $bits = [
+			Facing::AXIS_Y => 0,
+			Facing::AXIS_Z => 2,
+			Facing::AXIS_X => 1
+		];
+		return $bits[$this->axis] << $this->getAxisMetaShift();
+	}
+
+	/**
+	 * @see Block::place()
+	 *
+	 * @param BlockTransaction $tx
+	 * @param Item             $item
+	 * @param Block            $blockReplace
+	 * @param Block            $blockClicked
+	 * @param int              $face
+	 * @param Vector3          $clickVector
+	 * @param Player|null      $player
+	 *
+	 * @return bool
+	 */
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		$this->axis = Facing::axis($face);
+		/** @see Block::place() */
+		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+	}
+}

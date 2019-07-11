@@ -30,7 +30,7 @@ use pocketmine\entity\Entity;
 class Sword extends TieredTool{
 
 	public function getBlockToolType() : int{
-		return BlockToolType::TYPE_SWORD;
+		return BlockToolType::SWORD;
 	}
 
 	public function getAttackPoints() : int{
@@ -41,8 +41,8 @@ class Sword extends TieredTool{
 		return 1;
 	}
 
-	public function getMiningEfficiency(Block $block) : float{
-		return parent::getMiningEfficiency($block) * 1.5; //swords break any block 1.5x faster than hand
+	public function getMiningEfficiency(bool $isCorrectTool) : float{
+		return parent::getMiningEfficiency($isCorrectTool) * 1.5; //swords break any block 1.5x faster than hand
 	}
 
 	protected function getBaseMiningEfficiency() : float{
@@ -50,7 +50,7 @@ class Sword extends TieredTool{
 	}
 
 	public function onDestroyBlock(Block $block) : bool{
-		if($block->getHardness() > 0){
+		if(!$block->getBreakInfo()->breaksInstantly()){
 			return $this->applyDamage(2);
 		}
 		return false;

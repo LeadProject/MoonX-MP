@@ -26,9 +26,9 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class LevelSoundEventPacket extends DataPacket{
+class LevelSoundEventPacket extends DataPacket implements ClientboundPacket, ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::LEVEL_SOUND_EVENT_PACKET;
 
 	public const SOUND_ITEM_USE_ON = 0;
@@ -304,6 +304,17 @@ class LevelSoundEventPacket extends DataPacket{
 	public const SOUND_BLOCK_LOOM_USE = 273;
 	public const SOUND_UNDEFINED = 274;
 
+	public static function create(int $sound, ?Vector3 $pos, int $extraData = -1, string $entityType = ":", bool $isBabyMob = false) : self{
+		$result = new self;
+		$result->sound = $sound;
+		$result->extraData = $extraData;
+		$result->position = $pos;
+		$result->disableRelativeVolume = $pos === null;
+		$result->entityType = $entityType;
+		$result->isBabyMob = $isBabyMob;
+		return $result;
+	}
+
 	/** @var int */
 	public $sound;
 	/** @var Vector3 */
@@ -317,7 +328,7 @@ class LevelSoundEventPacket extends DataPacket{
 	/** @var bool */
 	public $disableRelativeVolume = false;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->sound = $this->getUnsignedVarInt();
 		$this->position = $this->getVector3();
 		$this->extraData = $this->getVarInt();
@@ -326,7 +337,7 @@ class LevelSoundEventPacket extends DataPacket{
 		$this->disableRelativeVolume = $this->getBool();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putUnsignedVarInt($this->sound);
 		$this->putVector3($this->position);
 		$this->putVarInt($this->extraData);
@@ -335,7 +346,7 @@ class LevelSoundEventPacket extends DataPacket{
 		$this->putBool($this->disableRelativeVolume);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleLevelSoundEvent($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleLevelSoundEvent($this);
 	}
 }

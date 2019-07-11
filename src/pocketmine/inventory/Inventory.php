@@ -27,9 +27,7 @@ declare(strict_types=1);
 namespace pocketmine\inventory;
 
 use pocketmine\item\Item;
-use pocketmine\level\Level;
-use pocketmine\math\Vector3;
-use pocketmine\Player;
+use pocketmine\player\Player;
 
 interface Inventory{
 	public const MAX_STACK = 64;
@@ -50,16 +48,6 @@ interface Inventory{
 	public function setMaxStackSize(int $size) : void;
 
 	/**
-	 * @return string
-	 */
-	public function getName() : string;
-
-	/**
-	 * @return string
-	 */
-	public function getTitle() : string;
-
-	/**
 	 * @param int $index
 	 *
 	 * @return Item
@@ -68,15 +56,12 @@ interface Inventory{
 
 	/**
 	 * Puts an Item in a slot.
-	 * If a plugin refuses the update or $index is invalid, it'll return false
 	 *
 	 * @param int  $index
 	 * @param Item $item
 	 * @param bool $send
-	 *
-	 * @return bool
 	 */
-	public function setItem(int $index, Item $item, bool $send = true) : bool;
+	public function setItem(int $index, Item $item, bool $send = true) : void;
 
 	/**
 	 * Stores the given Items in the inventory. This will try to fill
@@ -121,26 +106,6 @@ interface Inventory{
 	 * @param bool   $send
 	 */
 	public function setContents(array $items, bool $send = true) : void;
-
-	/**
-	 * Drops the contents of the inventory into the specified Level at the specified position and clears the inventory
-	 * contents.
-	 *
-	 * @param Level   $level
-	 * @param Vector3 $position
-	 */
-	public function dropContents(Level $level, Vector3 $position) : void;
-
-	/**
-	 * @param Player|Player[] $target
-	 */
-	public function sendContents($target) : void;
-
-	/**
-	 * @param int             $index
-	 * @param Player|Player[] $target
-	 */
-	public function sendSlot(int $index, $target) : void;
 
 	/**
 	 * Checks if the inventory contains any Item with the same material data.
@@ -203,10 +168,8 @@ interface Inventory{
 	 *
 	 * @param int  $index
 	 * @param bool $send
-	 *
-	 * @return bool
 	 */
-	public function clear(int $index, bool $send = true) : bool;
+	public function clear(int $index, bool $send = true) : void;
 
 	/**
 	 * Clears all the slots
@@ -214,6 +177,14 @@ interface Inventory{
 	 * @param bool $send
 	 */
 	public function clearAll(bool $send = true) : void;
+
+	/**
+	 * Swaps the specified slots.
+	 *
+	 * @param int $slot1
+	 * @param int $slot2
+	 */
+	public function swap(int $slot1, int $slot2) : void;
 
 	/**
 	 * Gets all the Players viewing the inventory
@@ -224,32 +195,13 @@ interface Inventory{
 	public function getViewers() : array;
 
 	/**
+	 * Called when a player opens this inventory.
+	 *
 	 * @param Player $who
 	 */
 	public function onOpen(Player $who) : void;
 
-	/**
-	 * Tries to open the inventory to a player
-	 *
-	 * @param Player $who
-	 *
-	 * @return bool
-	 */
-	public function open(Player $who) : bool;
-
-	public function close(Player $who) : void;
-
-	/**
-	 * @param Player $who
-	 */
 	public function onClose(Player $who) : void;
-
-	/**
-	 * @param int  $index
-	 * @param Item $before
-	 * @param bool $send
-	 */
-	public function onSlotChange(int $index, Item $before, bool $send) : void;
 
 	/**
 	 * Returns whether the specified slot exists in the inventory.
@@ -261,12 +213,17 @@ interface Inventory{
 	public function slotExists(int $slot) : bool;
 
 	/**
-	 * @return null|InventoryEventProcessor
+	 * @param InventoryChangeListener ...$listeners
 	 */
-	public function getEventProcessor() : ?InventoryEventProcessor;
+	public function addChangeListeners(InventoryChangeListener ...$listeners) : void;
 
 	/**
-	 * @param null|InventoryEventProcessor $eventProcessor
+	 * @param InventoryChangeListener ...$listeners
 	 */
-	public function setEventProcessor(?InventoryEventProcessor $eventProcessor) : void;
+	public function removeChangeListeners(InventoryChangeListener ...$listeners) : void;
+
+	/**
+	 * @return InventoryChangeListener[]
+	 */
+	public function getChangeListeners() : array;
 }

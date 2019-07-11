@@ -24,19 +24,15 @@ declare(strict_types=1);
 namespace pocketmine\block;
 
 use pocketmine\item\Item;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
-use pocketmine\Player;
+use pocketmine\player\Player;
+use pocketmine\world\BlockTransaction;
 
 class RedMushroom extends Flowable{
 
-	protected $id = self::RED_MUSHROOM;
-
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
-	}
-
-	public function getName() : string{
-		return "Red Mushroom";
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? BlockBreakInfo::instant());
 	}
 
 	public function ticksRandomly() : bool{
@@ -44,17 +40,15 @@ class RedMushroom extends Flowable{
 	}
 
 	public function onNearbyBlockChange() : void{
-		if($this->getSide(Vector3::SIDE_DOWN)->isTransparent()){
-			$this->getLevel()->useBreakOn($this);
+		if($this->getSide(Facing::DOWN)->isTransparent()){
+			$this->getWorld()->useBreakOn($this);
 		}
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		$down = $this->getSide(Vector3::SIDE_DOWN);
+	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		$down = $this->getSide(Facing::DOWN);
 		if(!$down->isTransparent()){
-			$this->getLevel()->setBlock($blockReplace, $this, true, true);
-
-			return true;
+			return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 		}
 
 		return false;

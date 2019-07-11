@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\item;
 
-class WrittenBook extends WritableBook{
+class WrittenBook extends WritableBookBase{
 
 	public const GENERATION_ORIGINAL = 0;
 	public const GENERATION_COPY = 1;
@@ -33,10 +33,6 @@ class WrittenBook extends WritableBook{
 	public const TAG_GENERATION = "generation"; //TAG_Int
 	public const TAG_AUTHOR = "author"; //TAG_String
 	public const TAG_TITLE = "title"; //TAG_String
-
-	public function __construct(int $meta = 0){
-		Item::__construct(self::WRITTEN_BOOK, $meta, "Written Book");
-	}
 
 	public function getMaxStackSize() : int{
 		return 16;
@@ -49,21 +45,24 @@ class WrittenBook extends WritableBook{
 	 * @return int
 	 */
 	public function getGeneration() : int{
-		return $this->getNamedTag()->getInt(self::TAG_GENERATION, -1);
+		return $this->getNamedTag()->getInt(self::TAG_GENERATION, self::GENERATION_ORIGINAL);
 	}
 
 	/**
 	 * Sets the generation of a book.
 	 *
 	 * @param int $generation
+	 *
+	 * @return $this
 	 */
-	public function setGeneration(int $generation) : void{
+	public function setGeneration(int $generation) : self{
 		if($generation < 0 or $generation > 3){
 			throw new \InvalidArgumentException("Generation \"$generation\" is out of range");
 		}
 		$namedTag = $this->getNamedTag();
 		$namedTag->setInt(self::TAG_GENERATION, $generation);
 		$this->setNamedTag($namedTag);
+		return $this;
 	}
 
 	/**
@@ -81,11 +80,14 @@ class WrittenBook extends WritableBook{
 	 * Sets the author of this book.
 	 *
 	 * @param string $authorName
+	 *
+	 * @return $this
 	 */
-	public function setAuthor(string $authorName) : void{
+	public function setAuthor(string $authorName) : self{
 		$namedTag = $this->getNamedTag();
 		$namedTag->setString(self::TAG_AUTHOR, $authorName);
 		$this->setNamedTag($namedTag);
+		return $this;
 	}
 
 	/**
@@ -101,10 +103,13 @@ class WrittenBook extends WritableBook{
 	 * Sets the author of this book.
 	 *
 	 * @param string $title
+	 *
+	 * @return $this
 	 */
-	public function setTitle(string $title) : void{
+	public function setTitle(string $title) : self{
 		$namedTag = $this->getNamedTag();
 		$namedTag->setString(self::TAG_TITLE, $title);
 		$this->setNamedTag($namedTag);
+		return $this;
 	}
 }

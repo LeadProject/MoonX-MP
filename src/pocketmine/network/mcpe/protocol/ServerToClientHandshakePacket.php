@@ -26,9 +26,9 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class ServerToClientHandshakePacket extends DataPacket{
+class ServerToClientHandshakePacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::SERVER_TO_CLIENT_HANDSHAKE_PACKET;
 
 	/**
@@ -37,19 +37,25 @@ class ServerToClientHandshakePacket extends DataPacket{
 	 */
 	public $jwt;
 
+	public static function create(string $jwt) : self{
+		$result = new self;
+		$result->jwt = $jwt;
+		return $result;
+	}
+
 	public function canBeSentBeforeLogin() : bool{
 		return true;
 	}
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->jwt = $this->getString();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putString($this->jwt);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleServerToClientHandshake($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleServerToClientHandshake($this);
 	}
 }

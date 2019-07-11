@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\event\entity;
 
-use pocketmine\entity\Effect;
+use pocketmine\entity\effect\Effect;
 use pocketmine\entity\Entity;
 use pocketmine\entity\Living;
 
@@ -53,12 +53,13 @@ class EntityDamageByEntityEvent extends EntityDamageEvent{
 
 	protected function addAttackerModifiers(Entity $damager) : void{
 		if($damager instanceof Living){ //TODO: move this to entity classes
-			if($damager->hasEffect(Effect::STRENGTH)){
-				$this->setModifier($this->getBaseDamage() * 0.3 * $damager->getEffect(Effect::STRENGTH)->getEffectLevel(), self::MODIFIER_STRENGTH);
+			$effects = $damager->getEffects();
+			if($effects->has(Effect::STRENGTH())){
+				$this->setModifier($this->getBaseDamage() * 0.3 * $effects->get(Effect::STRENGTH())->getEffectLevel(), self::MODIFIER_STRENGTH);
 			}
 
-			if($damager->hasEffect(Effect::WEAKNESS)){
-				$this->setModifier(-($this->getBaseDamage() * 0.2 * $damager->getEffect(Effect::WEAKNESS)->getEffectLevel()), self::MODIFIER_WEAKNESS);
+			if($effects->has(Effect::WEAKNESS())){
+				$this->setModifier(-($this->getBaseDamage() * 0.2 * $effects->get(Effect::WEAKNESS())->getEffectLevel()), self::MODIFIER_WEAKNESS);
 			}
 		}
 	}
@@ -69,7 +70,7 @@ class EntityDamageByEntityEvent extends EntityDamageEvent{
 	 * @return Entity|null
 	 */
 	public function getDamager() : ?Entity{
-		return $this->getEntity()->getLevel()->getServer()->findEntity($this->damagerEntityId);
+		return $this->getEntity()->getWorld()->getServer()->getWorldManager()->findEntity($this->damagerEntityId);
 	}
 
 	/**

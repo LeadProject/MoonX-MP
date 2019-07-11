@@ -23,11 +23,9 @@ declare(strict_types=1);
 
 namespace pocketmine\inventory;
 
+use pocketmine\block\tile\Chest;
 use pocketmine\item\Item;
-use pocketmine\Player;
-use pocketmine\tile\Chest;
-use function array_merge;
-use function array_slice;
+use pocketmine\player\Player;
 use function count;
 
 class DoubleChestInventory extends ChestInventory implements InventoryHolder{
@@ -39,16 +37,7 @@ class DoubleChestInventory extends ChestInventory implements InventoryHolder{
 	public function __construct(Chest $left, Chest $right){
 		$this->left = $left->getRealInventory();
 		$this->right = $right->getRealInventory();
-		$items = array_merge($this->left->getContents(true), $this->right->getContents(true));
-		BaseInventory::__construct($items);
-	}
-
-	public function getName() : string{
-		return "Double Chest";
-	}
-
-	public function getDefaultSize() : int{
-		return $this->left->getDefaultSize() + $this->right->getDefaultSize();
+		BaseInventory::__construct($this->left->getSize() + $this->right->getSize());
 	}
 
 	public function getInventory(){
@@ -66,13 +55,10 @@ class DoubleChestInventory extends ChestInventory implements InventoryHolder{
 		return $index < $this->left->getSize() ? $this->left->getItem($index) : $this->right->getItem($index - $this->left->getSize());
 	}
 
-	public function setItem(int $index, Item $item, bool $send = true) : bool{
+	public function setItem(int $index, Item $item, bool $send = true) : void{
 		$old = $this->getItem($index);
-		if($index < $this->left->getSize() ? $this->left->setItem($index, $item, $send) : $this->right->setItem($index - $this->left->getSize(), $item, $send)){
-			$this->onSlotChange($index, $old, $send);
-			return true;
-		}
-		return false;
+		$index < $this->left->getSize() ? $this->left->setItem($index, $item, $send) : $this->right->setItem($index - $this->left->getSize(), $item, $send);
+		$this->onSlotChange($index, $old, $send);
 	}
 
 	public function getContents(bool $includeEmpty = false) : array{
@@ -84,33 +70,6 @@ class DoubleChestInventory extends ChestInventory implements InventoryHolder{
 		}
 
 		return $result;
-	}
-
-	/**
-	 * @param Item[] $items
-	 * @param bool   $send
-	 */
-	public function setContents(array $items, bool $send = true) : void{
-		$size = $this->getSize();
-		if(count($items) > $size){
-			$items = array_slice($items, 0, $size, true);
-		}
-
-		$leftSize = $this->left->getSize();
-
-		for($i = 0; $i < $size; ++$i){
-			if(!isset($items[$i])){
-				if(($i < $leftSize and isset($this->left->slots[$i])) or isset($this->right->slots[$i - $leftSize])){
-					$this->clear($i, false);
-				}
-			}elseif(!$this->setItem($i, $items[$i], false)){
-				$this->clear($i, false);
-			}
-		}
-
-		if($send){
-			$this->sendContents($this->getViewers());
-		}
 	}
 
 	public function onOpen(Player $who) : void{

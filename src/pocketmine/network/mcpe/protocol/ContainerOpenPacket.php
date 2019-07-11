@@ -26,9 +26,10 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class ContainerOpenPacket extends DataPacket{
+class ContainerOpenPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::CONTAINER_OPEN_PACKET;
 
 	/** @var int */
@@ -44,21 +45,41 @@ class ContainerOpenPacket extends DataPacket{
 	/** @var int */
 	public $entityUniqueId = -1;
 
-	protected function decodePayload(){
+	public static function blockInv(int $windowId, int $windowType, int $x, int $y, int $z) : self{
+		$result = new self;
+		$result->windowId = $windowId;
+		$result->type = $windowType;
+		[$result->x, $result->y, $result->z] = [$x, $y, $z];
+		return $result;
+	}
+
+	public static function blockInvVec3(int $windowId, int $windowType, Vector3 $vector3) : self{
+		return self::blockInv($windowId, $windowType, $vector3->getFloorX(), $vector3->getFloorY(), $vector3->getFloorZ());
+	}
+
+	public static function entityInv(int $windowId, int $windowType, int $entityUniqueId) : self{
+		$result = new self;
+		$result->windowId = $windowId;
+		$result->type = $windowType;
+		$result->entityUniqueId = $entityUniqueId;
+		return $result;
+	}
+
+	protected function decodePayload() : void{
 		$this->windowId = $this->getByte();
 		$this->type = $this->getByte();
 		$this->getBlockPosition($this->x, $this->y, $this->z);
 		$this->entityUniqueId = $this->getEntityUniqueId();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putByte($this->windowId);
 		$this->putByte($this->type);
 		$this->putBlockPosition($this->x, $this->y, $this->z);
 		$this->putEntityUniqueId($this->entityUniqueId);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleContainerOpen($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleContainerOpen($this);
 	}
 }

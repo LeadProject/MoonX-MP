@@ -25,9 +25,9 @@ namespace pocketmine\network\mcpe\protocol;
 
 #include <rules/DataPacket.h>
 
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class LabTablePacket extends DataPacket{
+class LabTablePacket extends DataPacket implements ClientboundPacket, ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::LAB_TABLE_PACKET;
 
 	/** @var int */
@@ -43,19 +43,19 @@ class LabTablePacket extends DataPacket{
 	/** @var int */
 	public $reactionType;
 
-	protected function decodePayload(){
+	protected function decodePayload() : void{
 		$this->uselessByte = $this->getByte();
 		$this->getSignedBlockPosition($this->x, $this->y, $this->z);
 		$this->reactionType = $this->getByte();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putByte($this->uselessByte);
 		$this->putSignedBlockPosition($this->x, $this->y, $this->z);
 		$this->putByte($this->reactionType);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleLabTable($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleLabTable($this);
 	}
 }

@@ -26,9 +26,9 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\handler\PacketHandler;
 
-class LevelEventPacket extends DataPacket{
+class LevelEventPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::LEVEL_EVENT_PACKET;
 
 	public const EVENT_SOUND_CLICK = 1000;
@@ -81,6 +81,7 @@ class LevelEventPacket extends DataPacket{
 
 	public const EVENT_PARTICLE_BLOCK_FORCE_FIELD = 2008;
 	public const EVENT_PARTICLE_PROJECTILE_HIT = 2009;
+	public const EVENT_PARTICLE_DRAGON_EGG_TELEPORT = 2010;
 
 	public const EVENT_PARTICLE_ENDERMAN_TELEPORT = 2013;
 	public const EVENT_PARTICLE_PUNCH_BLOCK = 2014;
@@ -90,6 +91,8 @@ class LevelEventPacket extends DataPacket{
 	public const EVENT_STOP_RAIN = 3003;
 	public const EVENT_STOP_THUNDER = 3004;
 	public const EVENT_PAUSE_GAME = 3005; //data: 1 to pause, 0 to resume
+	public const EVENT_PAUSE_GAME_NO_SCREEN = 3006; //data: 1 to pause, 0 to resume - same effect as normal pause but without screen
+	public const EVENT_SET_GAME_SPEED = 3007; //x coordinate of pos = scale factor (default 1.0)
 
 	public const EVENT_REDSTONE_TRIGGER = 3500;
 	public const EVENT_CAULDRON_EXPLODE = 3501;
@@ -118,19 +121,27 @@ class LevelEventPacket extends DataPacket{
 	/** @var int */
 	public $data;
 
-	protected function decodePayload(){
+	public static function create(int $evid, int $data, ?Vector3 $pos) : self{
+		$pk = new self;
+		$pk->evid = $evid;
+		$pk->data = $data;
+		$pk->position = $pos !== null ? $pos->asVector3() : null;
+		return $pk;
+	}
+
+	protected function decodePayload() : void{
 		$this->evid = $this->getVarInt();
 		$this->position = $this->getVector3();
 		$this->data = $this->getVarInt();
 	}
 
-	protected function encodePayload(){
+	protected function encodePayload() : void{
 		$this->putVarInt($this->evid);
 		$this->putVector3Nullable($this->position);
 		$this->putVarInt($this->data);
 	}
 
-	public function handle(NetworkSession $session) : bool{
-		return $session->handleLevelEvent($this);
+	public function handle(PacketHandler $handler) : bool{
+		return $handler->handleLevelEvent($this);
 	}
 }

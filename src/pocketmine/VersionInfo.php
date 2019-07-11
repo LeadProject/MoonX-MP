@@ -21,8 +21,7 @@
 
 namespace pocketmine;
 
-const NAME = "Cloud-MP";
-const BASE_VERSION = "3.8.0";
+const NAME = "MoonX-MP";
+const BASE_VERSION = "4.0.0";
 const IS_DEVELOPMENT_BUILD = false;
-const BUILD_NUMBER = 50;
-const MP_VERSION = "1.0.3";
+const BUILD_NUMBER = 28;

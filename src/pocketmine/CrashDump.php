@@ -25,7 +25,6 @@ namespace pocketmine;
 
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\plugin\PluginBase;
-use pocketmine\plugin\PluginLoadOrder;
 use pocketmine\plugin\PluginManager;
 use pocketmine\utils\Utils;
 use pocketmine\utils\VersionString;
@@ -56,25 +55,11 @@ use function phpversion;
 use function preg_replace;
 use function str_split;
 use function strpos;
+use function strtoupper;
 use function substr;
 use function time;
 use function zend_version;
 use function zlib_encode;
-use const E_COMPILE_ERROR;
-use const E_COMPILE_WARNING;
-use const E_CORE_ERROR;
-use const E_CORE_WARNING;
-use const E_DEPRECATED;
-use const E_ERROR;
-use const E_NOTICE;
-use const E_PARSE;
-use const E_RECOVERABLE_ERROR;
-use const E_STRICT;
-use const E_USER_DEPRECATED;
-use const E_USER_ERROR;
-use const E_USER_NOTICE;
-use const E_USER_WARNING;
-use const E_WARNING;
 use const FILE_IGNORE_NEW_LINES;
 use const JSON_UNESCAPED_SLASHES;
 use const PHP_EOL;
@@ -134,7 +119,7 @@ class CrashDump{
 		return $this->path;
 	}
 
-	public function getEncodedData(){
+	public function getEncodedData() : string{
 		return $this->encodedData;
 	}
 
@@ -142,7 +127,7 @@ class CrashDump{
 		return $this->data;
 	}
 
-	private function encodeData(){
+	private function encodeData() : void{
 		$this->addLine();
 		$this->addLine("----------------------REPORT THE DATA BELOW THIS LINE-----------------------");
 		$this->addLine();
@@ -158,7 +143,7 @@ class CrashDump{
 		$this->addLine("===END CRASH DUMP===");
 	}
 
-	private function pluginsData(){
+	private function pluginsData() : void{
 		if($this->server->getPluginManager() instanceof PluginManager){
 			$this->addLine();
 			$this->addLine("Loaded plugins:");
@@ -174,7 +159,7 @@ class CrashDump{
 					"depends" => $d->getDepend(),
 					"softDepends" => $d->getSoftDepend(),
 					"main" => $d->getMain(),
-					"load" => $d->getOrder() === PluginLoadOrder::POSTWORLD ? "POSTWORLD" : "STARTUP",
+					"load" => strtoupper($d->getOrder()->name()),
 					"website" => $d->getWebsite()
 				];
 				$this->addLine($d->getName() . " " . $d->getVersion() . " by " . implode(", ", $d->getAuthors()) . " for API(s) " . implode(", ", $d->getCompatibleApis()));
@@ -182,7 +167,7 @@ class CrashDump{
 		}
 	}
 
-	private function extraData(){
+	private function extraData() : void{
 		global $argv;
 
 		if($this->server->getProperty("auto-report.send-settings", true) !== false){
@@ -209,7 +194,7 @@ class CrashDump{
 		}
 	}
 
-	private function baseCrash(){
+	private function baseCrash() : void{
 		global $lastExceptionError, $lastError;
 
 		if(isset($lastExceptionError)){
@@ -217,26 +202,13 @@ class CrashDump{
 		}else{
 			$error = (array) error_get_last();
 			$error["trace"] = Utils::currentTrace(3); //Skipping CrashDump->baseCrash, CrashDump->construct, Server->crashDump
-			$errorConversion = [
-				E_ERROR => "E_ERROR",
-				E_WARNING => "E_WARNING",
-				E_PARSE => "E_PARSE",
-				E_NOTICE => "E_NOTICE",
-				E_CORE_ERROR => "E_CORE_ERROR",
-				E_CORE_WARNING => "E_CORE_WARNING",
-				E_COMPILE_ERROR => "E_COMPILE_ERROR",
-				E_COMPILE_WARNING => "E_COMPILE_WARNING",
-				E_USER_ERROR => "E_USER_ERROR",
-				E_USER_WARNING => "E_USER_WARNING",
-				E_USER_NOTICE => "E_USER_NOTICE",
-				E_STRICT => "E_STRICT",
-				E_RECOVERABLE_ERROR => "E_RECOVERABLE_ERROR",
-				E_DEPRECATED => "E_DEPRECATED",
-				E_USER_DEPRECATED => "E_USER_DEPRECATED"
-			];
 			$error["fullFile"] = $error["file"];
 			$error["file"] = Utils::cleanPath($error["file"]);
-			$error["type"] = $errorConversion[$error["type"]] ?? $error["type"];
+			try{
+				$error["type"] = \ErrorUtils::errorTypeToString($error["type"]);
+			}catch(\InvalidArgumentException $e){
+				//pass
+			}
 			if(($pos = strpos($error["message"], "\n")) !== false){
 				$error["message"] = substr($error["message"], 0, $pos);
 			}
@@ -317,7 +289,7 @@ class CrashDump{
 		return false;
 	}
 
-	private function generalData(){
+	private function generalData() : void{
 		$version = new VersionString(\pocketmine\BASE_VERSION, \pocketmine\IS_DEVELOPMENT_BUILD, \pocketmine\BUILD_NUMBER);
 		$this->data["general"] = [];
 		$this->data["general"]["name"] = $this->server->getName();
@@ -340,11 +312,11 @@ class CrashDump{
 		$this->addLine("OS : " . PHP_OS . ", " . Utils::getOS());
 	}
 
-	public function addLine($line = ""){
+	public function addLine($line = "") : void{
 		fwrite($this->fp, $line . PHP_EOL);
 	}
 
-	public function add($str){
+	public function add($str) : void{
 		fwrite($this->fp, $str);
 	}
 }
